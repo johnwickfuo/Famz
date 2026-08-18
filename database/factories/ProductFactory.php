@@ -68,7 +68,10 @@ class ProductFactory extends Factory
             'category_id' => Category::factory(),
             'name' => $item['name'],
             'slug' => Str::slug($item['name']).'-'.Str::lower(Str::random(6)),
-            'description' => $this->describe($item['name']),
+            // A closure, so the description follows whatever name the caller
+            // actually ends up with. Generating it from the factory's own pick
+            // would leave an overridden name describing something else.
+            'description' => fn (array $attributes): string => $this->describe($attributes['name'] ?? $item['name']),
             'condition' => $item['condition'],
             'unit_of_measure' => $item['unit'],
             'price_kobo' => $price,
@@ -92,18 +95,32 @@ class ProductFactory extends Factory
         ];
     }
 
+    /**
+     * Written rather than generated: Latin filler reads as placeholder text in
+     * a catalogue that is meant to look like the real thing.
+     */
     private function describe(string $name): string
     {
-        return implode(' ', [
-            $name.'.',
-            fake()->randomElement([
-                'Available in Ibadan and we deliver within Oyo State.',
-                'Pick-up at the shop, or we arrange a bike for town delivery.',
-                'Bulk buyers, call before you come so we reserve for you.',
-                'Fresh stock arrived this week.',
-                'Price is per unit. Discount applies from ten units.',
+        return implode("\n\n", [
+            $name.'. '.fake()->randomElement([
+                'Fresh stock arrived this week and we are selling from the shop and the farm gate.',
+                'We have carried this line for years and buyers come back for it.',
+                'Same stock we supply to the bigger farms around here, sold in smaller quantities too.',
+                'Straight from the manufacturer, so the price is better than the open market.',
+                'Sold by the unit. Ask us about a discount if you are taking plenty.',
             ]),
-            fake()->paragraph(2),
+            fake()->randomElement([
+                'Pick-up at the shop, or we put it on a bike for delivery within town. For another state we send by park bus and you settle the transport.',
+                'Delivery is free within the local government. Outside that we quote you before you pay, so there is no surprise.',
+                'Come to the shop and check it yourself before you pay. We are open Monday to Saturday, 8am to 6pm.',
+                'Call or send a WhatsApp message before you come so we can set it aside for you.',
+            ]),
+            fake()->randomElement([
+                'Bulk buyers, please call ahead — we reserve for you and you collect at your convenience.',
+                'We can help you load. Bring your own sacks if you have them.',
+                'Ask for the manager if you are buying for a cooperative; there is a different price for that.',
+                'Payment on collection, or transfer first and we hold it for two days.',
+            ]),
         ]);
     }
 
