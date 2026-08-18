@@ -32,6 +32,7 @@ class BrandingServiceProvider extends ServiceProvider
         'certificates.*',
         'layouts.*',
         'components.brand.*',
+        'components.mail.*',
         'filament.*',
     ];
 

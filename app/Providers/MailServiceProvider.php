@@ -2,6 +2,10 @@
 
 namespace App\Providers;
 
+use App\Services\Branding\BrandingService;
+use Illuminate\Auth\Notifications\ResetPassword;
+use Illuminate\Auth\Notifications\VerifyEmail;
+use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\ServiceProvider;
 use Symfony\Component\Mailer\Bridge\Brevo\Transport\BrevoApiTransport;
@@ -19,6 +23,8 @@ class MailServiceProvider extends ServiceProvider
 {
     public function boot(): void
     {
+        $this->brandFrameworkNotifications();
+
         Mail::extend('brevo', function (array $config = []): TransportInterface {
             return new BrevoApiTransport(
                 (string) ($config['key'] ?? config('services.brevo.key')),
@@ -27,5 +33,32 @@ class MailServiceProvider extends ServiceProvider
                     : null,
             );
         });
+    }
+
+    /**
+     * The framework's own verification and password-reset notifications ship
+     * with Laravel's generic markdown layout and lean on config('app.name').
+     * Both are re-pointed at the branded layout so every message a person
+     * receives carries the same identity.
+     */
+    private function brandFrameworkNotifications(): void
+    {
+        $branding = fn (): BrandingService => app(BrandingService::class);
+
+        VerifyEmail::toMailUsing(fn ($notifiable, string $url): MailMessage => (new MailMessage)
+            ->from(config('mail.from.address'), $branding()->name())
+            ->subject($branding()->replacePlaceholders(__('Verify your email for {company}')))
+            ->view('emails.messages.verify-email', ['url' => $url]));
+
+        ResetPassword::toMailUsing(fn ($notifiable, string $token): MailMessage => (new MailMessage)
+            ->from(config('mail.from.address'), $branding()->name())
+            ->subject($branding()->replacePlaceholders(__('Reset your {company_short} password')))
+            ->view('emails.messages.reset-password', [
+                'url' => url(route('password.reset', [
+                    'token' => $token,
+                    'email' => $notifiable->getEmailForPasswordReset(),
+                ], absolute: false)),
+                'expiresInMinutes' => config('auth.passwords.'.config('auth.defaults.passwords').'.expire'),
+            ]));
     }
 }
