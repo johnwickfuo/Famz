@@ -37,9 +37,10 @@ class MailServiceProvider extends ServiceProvider
 
     /**
      * The framework's own verification and password-reset notifications ship
-     * with Laravel's generic markdown layout and lean on config('app.name').
-     * Both are re-pointed at the branded layout so every message a person
-     * receives carries the same identity.
+     * with Laravel's generic markdown layout, which takes its heading from the
+     * framework configuration rather than from settings. Both are re-pointed at
+     * the branded layout so every message a person receives carries the same
+     * identity, and follows a rename.
      */
     private function brandFrameworkNotifications(): void
     {
