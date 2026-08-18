@@ -68,6 +68,40 @@ branding cache immediately, so a rename is live on the next request.
 `tests/Feature/NoHardcodedBrandTest.php` fails the build if a brand-shaped
 literal appears in `app/`, `resources/` or `config/`.
 
+## Selling and the catalogue
+
+Anyone with an account can apply to sell at `/sell` — a four-step form covering
+the business, its location, an ID document and the categories they intend to
+trade in. CAC registration is optional on purpose: most traders in this market
+are not registered, and requiring it would shut them out.
+
+Applications land `pending` and grant no role. An administrator approves,
+rejects with a reason, or asks for more information from **Admin → Sellers**;
+approval is what grants the `seller` role and opens `/seller`.
+
+A new seller's listings queue for review. After **three** approved listings the
+rest go live straight away; an administrator can override that per seller in
+either direction. Ownership of a listing is enforced twice — by a query scope on
+the seller panel's resource and by `ProductPolicy` — so neither a forgotten scope
+nor a forgotten policy check can expose another seller's records.
+
+Money is stored in **kobo** as integers everywhere; `App\Support\Money` is the
+only place it becomes something a person reads.
+
+Live animals and perishable goods must carry a handling or delivery note. That
+is enforced on the model, not just in the form, so an admin edit, an import or a
+seeder is bound by it too — and both flags are surfaced on the catalogue card,
+not only on the product page.
+
+Catalogue search uses a MySQL `FULLTEXT` index in boolean mode, with prefix
+matching so "feed" finds "feeder". On SQLite it degrades to a `LIKE` scan; the
+tests in `tests/Driver` cover the production path against a real MySQL and skip
+when none is reachable.
+
+```bash
+php artisan db:seed --class=DemoCatalogueSeeder   # eight sellers, ~50 listings
+```
+
 ## Roles
 
 One `users` table. A user may hold any number of roles at once — they are

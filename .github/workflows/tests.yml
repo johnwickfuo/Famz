@@ -59,4 +59,16 @@ jobs:
           php artisan key:generate
 
       - name: Run tests
-        run: php artisan test
+        run: php artisan test --testsuite=Unit,Feature
+
+      # The driver suite covers what only exists on MySQL — the FULLTEXT index
+      # and boolean-mode search. It skips itself when no MySQL is reachable, so
+      # the credentials matter: without them it would pass by skipping.
+      - name: Run the MySQL driver tests
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_USERNAME: root
+          DB_PASSWORD: root
+          DB_TEST_DATABASE: agriplatform_testing
+        run: php artisan test --testsuite=Driver
