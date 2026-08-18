@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\User;
+use Database\Seeders\RoleSeeder;
 
 test('login screen can be rendered', function () {
     $response = $this->get('/login');
@@ -59,7 +60,7 @@ it('lets a pending account sign in and use the site', function () {
 });
 
 it('shares the signed-in user and their roles with every page', function () {
-    $this->seed(\Database\Seeders\RoleSeeder::class);
+    $this->seed(RoleSeeder::class);
 
     $user = User::factory()->create();
     $user->syncRoles(['seller', 'mentor']);

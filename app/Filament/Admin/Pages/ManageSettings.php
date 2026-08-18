@@ -40,7 +40,7 @@ class ManageSettings extends Page
      */
     public ?array $data = [];
 
-    protected static string | BackedEnum | null $navigationIcon = 'heroicon-o-cog-6-tooth';
+    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-cog-6-tooth';
 
     protected static ?int $navigationSort = 90;
 
@@ -62,12 +62,12 @@ class ManageSettings extends Page
         return __('Settings');
     }
 
-    public function getTitle(): string | Htmlable
+    public function getTitle(): string|Htmlable
     {
         return __('Settings');
     }
 
-    public function getSubheading(): string | Htmlable | null
+    public function getSubheading(): string|Htmlable|null
     {
         return __('The company name and logo set here are used everywhere: the site, emails, PDFs and certificates.');
     }

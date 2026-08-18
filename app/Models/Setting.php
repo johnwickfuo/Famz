@@ -10,6 +10,4 @@ use Illuminate\Database\Eloquent\Model;
  * read or write this model directly — the cache lives in the service.
  */
 #[Fillable(['key', 'group', 'type', 'value'])]
-class Setting extends Model
-{
-}
+class Setting extends Model {}

@@ -6,6 +6,7 @@ use App\Services\Branding\BrandingService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
+use Illuminate\Mail\Mailables\Address;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 
@@ -42,12 +43,12 @@ abstract class BrandedMailable extends Mailable implements ShouldQueue
         $branding = app(BrandingService::class);
 
         return new Envelope(
-            from: new \Illuminate\Mail\Mailables\Address(
+            from: new Address(
                 config('mail.from.address'),
                 $branding->name(),
             ),
             replyTo: filled($branding->email())
-                ? [new \Illuminate\Mail\Mailables\Address($branding->email(), $branding->name())]
+                ? [new Address($branding->email(), $branding->name())]
                 : [],
             subject: $branding->replacePlaceholders($this->subjectLine()) ?? '',
         );

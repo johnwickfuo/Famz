@@ -7,9 +7,7 @@ use Illuminate\Mail\Mailables\Content;
 
 class WelcomeMail extends BrandedMailable
 {
-    public function __construct(public readonly User $user)
-    {
-    }
+    public function __construct(public readonly User $user) {}
 
     protected function subjectLine(): string
     {

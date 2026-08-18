@@ -25,9 +25,7 @@ class BrandingService
      */
     private ?array $memo = null;
 
-    public function __construct(private readonly SettingsService $settings)
-    {
-    }
+    public function __construct(private readonly SettingsService $settings) {}
 
     /**
      * Everything a template needs, in one cached array.

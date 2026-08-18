@@ -2,13 +2,14 @@
 
 use App\Enums\RoleName;
 use App\Models\User;
+use Database\Seeders\RoleSeeder;
 
 /**
  * Each panel is gated by the role whose name matches its id, enforced twice:
  * by User::canAccessPanel() and by the EnsurePanelRole middleware.
  */
 beforeEach(function (): void {
-    $this->seed(\Database\Seeders\RoleSeeder::class);
+    $this->seed(RoleSeeder::class);
 });
 
 dataset('panels', [

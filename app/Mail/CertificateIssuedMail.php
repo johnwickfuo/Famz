@@ -11,8 +11,7 @@ class CertificateIssuedMail extends BrandedMailable
         public readonly User $user,
         public readonly string $courseTitle,
         public readonly string $reference,
-    ) {
-    }
+    ) {}
 
     protected function subjectLine(): string
     {

@@ -6,14 +6,16 @@ use App\Models\User;
 use App\Services\Branding\BrandingKey;
 use App\Services\Branding\BrandingService;
 use App\Services\Settings\SettingsService;
+use Database\Seeders\RoleSeeder;
+use Database\Seeders\SettingsSeeder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 
 use function Pest\Livewire\livewire;
 
 beforeEach(function (): void {
-    $this->seed(\Database\Seeders\RoleSeeder::class);
-    $this->seed(\Database\Seeders\SettingsSeeder::class);
+    $this->seed(RoleSeeder::class);
+    $this->seed(SettingsSeeder::class);
 
     $this->admin = User::factory()->create();
     $this->admin->assignRole(RoleName::Admin->value);

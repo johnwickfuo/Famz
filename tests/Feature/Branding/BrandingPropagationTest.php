@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Services\Branding\BrandingKey;
 use App\Services\Branding\BrandingService;
 use App\Services\Settings\SettingsService;
+use Database\Seeders\SettingsSeeder;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -25,7 +26,7 @@ function renameCompanyTo(string $name, array $extra = []): void
 }
 
 it('renders the seeded fallback when the company has not been named yet', function () {
-    $this->seed(\Database\Seeders\SettingsSeeder::class);
+    $this->seed(SettingsSeeder::class);
 
     expect(app(BrandingService::class)->name())->toBe(config('app.name'));
 });

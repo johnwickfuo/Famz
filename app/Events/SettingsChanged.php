@@ -15,9 +15,7 @@ class SettingsChanged
     /**
      * @param  array<int, string>  $keys  Keys that changed; empty means "all of them".
      */
-    public function __construct(public readonly array $keys = [])
-    {
-    }
+    public function __construct(public readonly array $keys = []) {}
 
     public function touches(string $key): bool
     {

@@ -13,9 +13,7 @@ use App\Services\Branding\BrandingService;
  */
 class FlushBrandingCache
 {
-    public function __construct(private readonly BrandingService $branding)
-    {
-    }
+    public function __construct(private readonly BrandingService $branding) {}
 
     public function handle(SettingsChanged $event): void
     {

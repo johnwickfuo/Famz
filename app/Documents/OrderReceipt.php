@@ -19,8 +19,7 @@ class OrderReceipt extends BrandedDocument
         private readonly string $buyerName,
         private readonly array $lines,
         private readonly ?Carbon $issuedAt = null,
-    ) {
-    }
+    ) {}
 
     protected function view(): string
     {

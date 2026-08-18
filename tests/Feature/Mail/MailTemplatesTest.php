@@ -7,6 +7,7 @@ use App\Mail\MailTemplateRegistry;
 use App\Models\User;
 use App\Services\Branding\BrandingKey;
 use App\Services\Settings\SettingsService;
+use Database\Seeders\RoleSeeder;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\Mail;
 use Symfony\Component\Finder\Finder;
@@ -14,7 +15,7 @@ use Symfony\Component\Finder\Finder;
 use function Pest\Livewire\livewire;
 
 beforeEach(function (): void {
-    $this->seed(\Database\Seeders\RoleSeeder::class);
+    $this->seed(RoleSeeder::class);
 
     $this->admin = User::factory()->create();
     $this->admin->assignRole(RoleName::Admin->value);

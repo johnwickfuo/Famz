@@ -3,8 +3,11 @@
 use App\Enums\UserStatus;
 use App\Mail\WelcomeMail;
 use App\Models\User;
+use Database\Seeders\RoleSeeder;
 use Illuminate\Auth\Events\Registered;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Schema;
 
 test('registration screen can be rendered', function () {
     $this->get('/register')->assertOk();
@@ -23,7 +26,7 @@ test('new users can register', function () {
 });
 
 it('creates a plain user with no elevated role', function () {
-    $this->seed(\Database\Seeders\RoleSeeder::class);
+    $this->seed(RoleSeeder::class);
 
     $this->post('/register', [
         'name' => 'Aisha Bello',
@@ -75,7 +78,7 @@ it('asks the new user to verify their email', function () {
 it('rolls the whole registration back if the profile cannot be written', function () {
     // Registration writes the user and the profile in one transaction, so a
     // half-registered account can never exist.
-    \Illuminate\Support\Facades\Schema::drop('profiles');
+    Schema::drop('profiles');
 
     try {
         $this->post('/register', [
@@ -84,7 +87,7 @@ it('rolls the whole registration back if the profile cannot be written', functio
             'password' => 'password',
             'password_confirmation' => 'password',
         ]);
-    } catch (\Throwable) {
+    } catch (Throwable) {
         // The failure itself is not what is under test.
     }
 
@@ -106,5 +109,5 @@ it('rejects a duplicate email address', function () {
 
 it('sends the welcome mail through the queue, never inline', function () {
     expect(new WelcomeMail(User::factory()->create()))
-        ->toBeInstanceOf(\Illuminate\Contracts\Queue\ShouldQueue::class);
+        ->toBeInstanceOf(ShouldQueue::class);
 });

@@ -19,8 +19,7 @@ class CompletionCertificate extends BrandedDocument
         private readonly string $courseTitle,
         private readonly string $reference,
         private readonly ?Carbon $issuedAt = null,
-    ) {
-    }
+    ) {}
 
     public static function for(User $holder, string $courseTitle, ?string $reference = null): self
     {

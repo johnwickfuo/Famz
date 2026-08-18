@@ -2,6 +2,7 @@
 
 use App\Models\Setting;
 use App\Services\Settings\SettingsService;
+use Database\Seeders\SettingsSeeder;
 use Illuminate\Support\Facades\DB;
 
 beforeEach(function (): void {
@@ -9,7 +10,7 @@ beforeEach(function (): void {
 });
 
 it('seeds the platform rules the business runs on', function () {
-    $this->seed(\Database\Seeders\SettingsSeeder::class);
+    $this->seed(SettingsSeeder::class);
 
     expect($this->settings->integer('consultation_standard_response_hours'))->toBe(48)
         ->and($this->settings->integer('consultation_urgent_response_hours'))->toBe(6)
@@ -21,7 +22,7 @@ it('seeds the platform rules the business runs on', function () {
 });
 
 it('seeds the company name empty so the platform falls back', function () {
-    $this->seed(\Database\Seeders\SettingsSeeder::class);
+    $this->seed(SettingsSeeder::class);
 
     expect(Setting::query()->where('key', 'company_name')->exists())->toBeTrue()
         ->and(Setting::query()->where('key', 'company_name')->value('value'))->toBeNull()
@@ -31,7 +32,7 @@ it('seeds the company name empty so the platform falls back', function () {
 it('does not overwrite a value the administrator has already set', function () {
     $this->settings->set('quote_validity_days', 90, 'int', 'platform');
 
-    $this->seed(\Database\Seeders\SettingsSeeder::class);
+    $this->seed(SettingsSeeder::class);
 
     expect($this->settings->integer('quote_validity_days'))->toBe(90);
 });

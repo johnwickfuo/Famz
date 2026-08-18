@@ -5,6 +5,7 @@ namespace App\Documents;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Barryvdh\DomPDF\PDF as PdfWrapper;
 use Illuminate\Contracts\Support\Renderable;
+use Symfony\Component\HttpFoundation\Response;
 
 /**
  * Base for every PDF the platform produces.
@@ -48,12 +49,12 @@ abstract class BrandedDocument implements Renderable
         return $this->pdf()->output();
     }
 
-    public function download(): \Symfony\Component\HttpFoundation\Response
+    public function download(): Response
     {
         return $this->pdf()->download($this->filename());
     }
 
-    public function stream(): \Symfony\Component\HttpFoundation\Response
+    public function stream(): Response
     {
         return $this->pdf()->stream($this->filename());
     }

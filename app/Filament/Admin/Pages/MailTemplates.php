@@ -22,7 +22,7 @@ use Throwable;
  */
 class MailTemplates extends Page
 {
-    protected static string | BackedEnum | null $navigationIcon = 'heroicon-o-envelope';
+    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-envelope';
 
     protected static ?int $navigationSort = 91;
 
@@ -31,12 +31,12 @@ class MailTemplates extends Page
         return __('Mail templates');
     }
 
-    public function getTitle(): string | Htmlable
+    public function getTitle(): string|Htmlable
     {
         return __('Mail templates');
     }
 
-    public function getSubheading(): string | Htmlable | null
+    public function getSubheading(): string|Htmlable|null
     {
         return __('Every message below is rendered with the current company name and logo. Send yourself a test to check it.');
     }
