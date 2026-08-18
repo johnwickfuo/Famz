@@ -2,6 +2,7 @@
 
 namespace App\Services\Sellers;
 
+use App\Enums\ProductStatus;
 use App\Enums\RoleName;
 use App\Enums\SellerStatus;
 use App\Mail\SellerApprovedMail;
@@ -128,12 +129,12 @@ class SellerApplicationService
     {
         $seller->products()
             ->whereIn('status', [
-                \App\Enums\ProductStatus::Active,
-                \App\Enums\ProductStatus::OutOfStock,
-                \App\Enums\ProductStatus::PendingReview,
+                ProductStatus::Active,
+                ProductStatus::OutOfStock,
+                ProductStatus::PendingReview,
             ])
             ->update([
-                'status' => \App\Enums\ProductStatus::Rejected,
+                'status' => ProductStatus::Rejected,
                 'review_notes' => __('Withdrawn because the seller account is no longer approved.'),
                 'published_at' => null,
             ]);

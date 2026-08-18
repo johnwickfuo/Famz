@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Enums\BusinessType;
 use App\Http\Requests\SellerApplicationRequest;
 use App\Models\Category;
-use App\Models\SellerProfile;
 use App\Services\Sellers\SellerApplicationService;
 use App\Support\Nigeria;
 use Illuminate\Http\RedirectResponse;

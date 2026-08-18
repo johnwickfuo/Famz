@@ -34,6 +34,11 @@ use Illuminate\Support\Str;
     'id_document',
     'logo',
     'description',
+
+    // Set by an administrator from the seller screen, never by the applicant:
+    // the public application path fills from an explicit allowlist in
+    // SellerApplicationRequest, so this cannot be reached from there.
+    'auto_approve_products',
 ])]
 class SellerProfile extends Model
 {

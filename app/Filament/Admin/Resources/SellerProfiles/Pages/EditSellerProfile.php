@@ -1,0 +1,17 @@
+<?php
+
+namespace App\Filament\Admin\Resources\SellerProfiles\Pages;
+
+use App\Filament\Admin\Actions\SellerReviewActions;
+use App\Filament\Admin\Resources\SellerProfiles\SellerProfileResource;
+use Filament\Resources\Pages\EditRecord;
+
+class EditSellerProfile extends EditRecord
+{
+    protected static string $resource = SellerProfileResource::class;
+
+    protected function getHeaderActions(): array
+    {
+        return SellerReviewActions::all();
+    }
+}

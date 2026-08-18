@@ -12,13 +12,15 @@ use App\Models\Product;
 use App\Models\SellerProfile;
 use App\Models\User;
 use App\Services\Sellers\SellerApplicationService;
+use Database\Seeders\CategorySeeder;
+use Database\Seeders\RoleSeeder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 
 beforeEach(function (): void {
-    $this->seed(Database\Seeders\RoleSeeder::class);
-    $this->seed(Database\Seeders\CategorySeeder::class);
+    $this->seed(RoleSeeder::class);
+    $this->seed(CategorySeeder::class);
 
     $this->applicant = User::factory()->create();
     $this->applications = app(SellerApplicationService::class);

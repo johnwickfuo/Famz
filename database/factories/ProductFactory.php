@@ -24,7 +24,7 @@ class ProductFactory extends Factory
      */
     private const CATALOGUE = [
         ['name' => 'Broiler starter mash, 25kg', 'unit' => UnitOfMeasure::Bag, 'kobo' => [1_600_000, 2_400_000], 'condition' => ProductCondition::New],
-        ['name' => "Layers mash, 25kg", 'unit' => UnitOfMeasure::Bag, 'kobo' => [1_500_000, 2_200_000], 'condition' => ProductCondition::New],
+        ['name' => 'Layers mash, 25kg', 'unit' => UnitOfMeasure::Bag, 'kobo' => [1_500_000, 2_200_000], 'condition' => ProductCondition::New],
         ['name' => 'Growers mash, 25kg', 'unit' => UnitOfMeasure::Bag, 'kobo' => [1_450_000, 2_100_000], 'condition' => ProductCondition::New],
         ['name' => 'Day-old broiler chicks', 'unit' => UnitOfMeasure::Bird, 'kobo' => [90_000, 160_000], 'condition' => ProductCondition::Live, 'live' => true],
         ['name' => 'Day-old layer chicks', 'unit' => UnitOfMeasure::Bird, 'kobo' => [95_000, 170_000], 'condition' => ProductCondition::Live, 'live' => true],
