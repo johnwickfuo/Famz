@@ -55,6 +55,28 @@ class User extends Authenticatable implements FilamentUser, HasAvatar, MustVerif
     }
 
     /**
+     * The seller application, and once approved the trading identity. Present
+     * whether or not the application succeeded.
+     *
+     * @return HasOne<SellerProfile, $this>
+     */
+    public function sellerProfile(): HasOne
+    {
+        return $this->hasOne(SellerProfile::class);
+    }
+
+    /**
+     * The seller record this user may trade as, or null. Approval status is
+     * checked here rather than at each call site.
+     */
+    public function activeSellerProfile(): ?SellerProfile
+    {
+        $seller = $this->sellerProfile;
+
+        return $seller?->canSell() ? $seller : null;
+    }
+
+    /**
      * The profile row, created on demand so callers never have to null-check.
      */
     public function profileOrNew(): Profile
