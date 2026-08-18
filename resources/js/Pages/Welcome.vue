@@ -55,7 +55,7 @@ const pillars = [
             <div class="mt-6 flex flex-wrap gap-3">
                 <Button v-if="!user" :href="route('register')" size="lg">Join free</Button>
                 <Button v-else :href="route('dashboard')" size="lg">Go to my dashboard</Button>
-                <Button :href="route('sections.show', 'marketplace')" variant="secondary" size="lg">
+                <Button :href="route('catalogue.home')" variant="secondary" size="lg">
                     Browse the market
                 </Button>
             </div>

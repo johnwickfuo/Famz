@@ -17,7 +17,7 @@ const search = ref('');
 const menuOpen = ref(false);
 
 const nav = [
-    { label: 'Marketplace', href: route('sections.show', 'marketplace') },
+    { label: 'Marketplace', href: route('catalogue.home') },
     { label: 'Training', href: route('sections.show', 'training') },
     { label: 'Mentors', href: route('sections.show', 'mentors') },
     { label: 'Farm jobs', href: route('sections.show', 'jobs') },
