@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
+use LogicException;
 
 #[Fillable([
     'category_id',
@@ -63,6 +64,26 @@ class Product extends Model
         static::saving(function (self $product): void {
             if (blank($product->slug)) {
                 $product->slug = static::uniqueSlug($product->name);
+            }
+
+            /*
+             * Live birds and perishable goods are the two things on this
+             * platform that go wrong between the sale and the buyer, so a
+             * listing for either must say how it reaches them.
+             *
+             * Enforced on the model rather than only in the seller's form: an
+             * admin edit, an import or a seeder must not be able to create one
+             * without it either. A draft is exempt — a seller is allowed to
+             * save half a thought and come back to it — but nothing publicly
+             * visible is.
+             */
+            if ($product->status->isPubliclyVisible()
+                && $product->needsHandlingNote()
+                && ! $product->hasHandlingNote()
+            ) {
+                throw new LogicException(
+                    'A live animal or perishable listing must carry a handling note before it can be published.'
+                );
             }
 
             // A listing with no stock says so itself rather than waiting for a
@@ -152,14 +173,18 @@ class Product extends Model
      */
     public function scopeVisible(Builder $query): Builder
     {
+        // Columns are qualified because these scopes are used alongside joins
+        // — the state filter joins seller_profiles, which has its own `status`.
         return $query
-            ->whereIn('status', [ProductStatus::Active, ProductStatus::OutOfStock])
+            ->whereIn('products.status', [ProductStatus::Active, ProductStatus::OutOfStock])
             ->whereHas('seller', fn (Builder $seller) => $seller->approved());
     }
 
     public function scopeBuyable(Builder $query): Builder
     {
-        return $query->where('status', ProductStatus::Active)->where('stock_quantity', '>', 0);
+        return $query
+            ->where('products.status', ProductStatus::Active)
+            ->where('products.stock_quantity', '>', 0);
     }
 
     /**
@@ -170,12 +195,12 @@ class Product extends Model
     {
         // A null seller matches nothing rather than everything: failing closed
         // is the only safe reading of "no seller".
-        return $query->where('seller_id', $seller?->getKey() ?? 0);
+        return $query->where('products.seller_id', $seller?->getKey() ?? 0);
     }
 
     public function scopeInCategoryTree(Builder $query, Category $category): Builder
     {
-        return $query->whereIn('category_id', $category->descendantIds());
+        return $query->whereIn('products.category_id', $category->descendantIds());
     }
 
     /**
@@ -193,23 +218,55 @@ class Product extends Model
             return $query;
         }
 
+        $words = preg_split('/\s+/', $terms, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+
         $driver = $query->getConnection()->getDriverName();
 
         if (in_array($driver, ['mysql', 'mariadb'], true)) {
-            return $query->whereFullText(['name', 'description'], $terms, ['mode' => 'boolean']);
-        }
+            $expression = self::booleanModeExpression($words);
 
-        $words = preg_split('/\s+/', $terms, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+            // Every word was punctuation or too short for the full-text index
+            // to have tokenised. Falling through to LIKE finds them anyway
+            // rather than returning a confidently empty page.
+            if ($expression !== '') {
+                return $query->whereFullText(['products.name', 'products.description'], $expression, ['mode' => 'boolean']);
+            }
+        }
 
         return $query->where(function (Builder $outer) use ($words): void {
             foreach ($words as $word) {
                 $like = '%'.addcslashes($word, '%_\\').'%';
 
                 $outer->where(fn (Builder $inner) => $inner
-                    ->where('name', 'like', $like)
-                    ->orWhere('description', 'like', $like));
+                    ->where('products.name', 'like', $like)
+                    ->orWhere('products.description', 'like', $like));
             }
         });
+    }
+
+    /**
+     * Build a boolean-mode expression from what a person typed.
+     *
+     * Two things matter here. Boolean-mode operators (+ - * " ~ < > ( )) are
+     * stripped, because a stray hyphen in "day-old" would otherwise mean
+     * "exclude old" and quietly return the wrong thing. And each word gets a
+     * trailing wildcard, because somebody searching "feed" means feeds, feeder
+     * and feeding — which a bare token match would miss entirely.
+     *
+     * @param  array<int, string>  $words
+     */
+    private static function booleanModeExpression(array $words): string
+    {
+        // Words shorter than the index's token size are never matched by
+        // full-text, so including them would silently exclude every row.
+        $minimum = 3;
+
+        return collect($words)
+            ->map(fn (string $word): string => preg_replace('/[+\-*~<>()"@]+/u', ' ', $word) ?? '')
+            ->flatMap(fn (string $word): array => preg_split('/\s+/', $word, -1, PREG_SPLIT_NO_EMPTY) ?: [])
+            ->filter(fn (string $word): bool => mb_strlen($word) >= $minimum)
+            ->map(fn (string $word): string => '+'.$word.'*')
+            ->implode(' ');
     }
 
     // ---------------------------------------------------------------------
@@ -242,17 +299,23 @@ class Product extends Model
     }
 
     /**
-     * The unit price at a given quantity, honouring bulk tiers. Falls back to
-     * the list price when no tier applies.
+     * What one unit costs at a given quantity, for a given option.
+     *
+     * A bulk tier replaces the *base* price, and the option's difference still
+     * applies on top: at ten bags, a 50kg bag must still cost more than a 25kg
+     * bag. Letting the tier win outright would quietly sell the larger option
+     * at the smaller one's price.
      */
-    public function unitPriceKoboFor(int $quantity): int
+    public function unitPriceKoboFor(int $quantity, ?ProductVariant $variant = null): int
     {
         $tier = $this->priceTiers
             ->filter(fn (ProductPriceTier $tier): bool => $quantity >= $tier->min_quantity)
             ->sortByDesc('min_quantity')
             ->first();
 
-        return $tier?->unit_price_kobo ?? $this->price_kobo;
+        $base = $tier?->unit_price_kobo ?? $this->price_kobo;
+
+        return max(0, $base + ($variant?->price_delta_kobo ?? 0));
     }
 
     public function isInStock(): bool

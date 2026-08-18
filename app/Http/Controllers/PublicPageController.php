@@ -2,15 +2,14 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /**
- * The public shell: home, search and the four marketplace sections. The
- * sections are deliberately thin — they exist so the public layout, nav and
- * search are real and navigable while the catalogue is built out.
+ * The public shell outside the catalogue. These sections are deliberately thin
+ * — they hold a place in the navigation for parts of the platform that arrive
+ * in later phases.
  */
 class PublicPageController extends Controller
 {
@@ -18,11 +17,6 @@ class PublicPageController extends Controller
      * @var array<string, array{title: string, empty_title: string, empty_description: string}>
      */
     private const SECTIONS = [
-        'marketplace' => [
-            'title' => 'Marketplace',
-            'empty_title' => 'No listings yet',
-            'empty_description' => 'Feed, chicks, cages and equipment will appear here as sellers publish them.',
-        ],
         'training' => [
             'title' => 'Training',
             'empty_title' => 'No courses yet',
@@ -43,13 +37,6 @@ class PublicPageController extends Controller
     public function home(): Response
     {
         return Inertia::render('Welcome');
-    }
-
-    public function search(Request $request): Response
-    {
-        return Inertia::render('Search', [
-            'query' => (string) $request->string('q'),
-        ]);
     }
 
     public function section(string $section): Response
