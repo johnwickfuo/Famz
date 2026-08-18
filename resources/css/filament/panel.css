@@ -1,0 +1,64 @@
+@import '../../../vendor/filament/filament/resources/css/theme.css';
+
+@source '../../../app/Filament/**/*';
+@source '../../../app/Providers/Filament/**/*';
+@source '../../../resources/views/filament/**/*';
+
+/*
+ * One theme, shared by every panel. The palette and type are the same tokens
+ * the public site uses — see docs/design-system.md — so an administrator never
+ * feels like they left the platform.
+ */
+
+@theme {
+    --font-display: 'Archivo Expanded', 'Archivo', ui-sans-serif, system-ui, sans-serif;
+    --font-sans: 'Lexend', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+@font-face {
+    font-family: 'Archivo Expanded';
+    src: url('../../fonts/archivo-expanded.woff2') format('woff2-variations');
+    font-weight: 600 800;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Lexend';
+    src: url('../../fonts/lexend.woff2') format('woff2-variations');
+    font-weight: 400 700;
+    font-style: normal;
+    font-display: swap;
+}
+
+:root {
+    --font-family: 'Lexend', ui-sans-serif, system-ui, sans-serif;
+}
+
+.fi-body {
+    font-family: 'Lexend', ui-sans-serif, system-ui, sans-serif;
+    font-feature-settings: 'zero' 1;
+}
+
+.fi-topbar h1,
+.fi-header-heading,
+.fi-modal-heading,
+.fi-section-header-heading {
+    font-family: 'Archivo Expanded', 'Archivo', ui-sans-serif, system-ui, sans-serif;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+}
+
+/* The seam, carried into the panels. */
+.fi-sidebar-nav,
+.fi-header {
+    border-bottom-style: dashed;
+}
+
+/* The brand block in the sidebar is the same stitched label as the site. */
+.fi-logo {
+    font-family: 'Archivo Expanded', 'Archivo', ui-sans-serif, system-ui, sans-serif;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
