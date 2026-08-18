@@ -122,7 +122,7 @@ class ManageSettings extends Page
             TextInput::make(BrandingKey::Name->value)
                 ->label(__('Company name'))
                 ->maxLength(120)
-                ->helperText(__('Leave this empty and the platform falls back to APP_NAME. Everything else follows this one field.'))
+                ->helperText(__('The whole platform follows this one field — the site, emails, PDFs and certificates. Leave it empty and the placeholder name from the server configuration is used instead.'))
                 ->columnSpanFull(),
 
             TextInput::make(BrandingKey::ShortName->value)

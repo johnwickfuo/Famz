@@ -17,8 +17,8 @@ use Throwable;
 
 /**
  * Lists every mail the platform can send, and sends a real test copy of any of
- * them so an administrator can check the branding against a real inbox rather
- * than a screenshot.
+ * them, so an administrator can check the branding against an actual inbox
+ * rather than a screenshot.
  */
 class MailTemplates extends Page
 {
@@ -43,13 +43,13 @@ class MailTemplates extends Page
 
     public function content(Schema $schema): Schema
     {
-        $registry = app(MailTemplateRegistry::class);
-
         return $schema->components(
-            collect($registry->all())
+            collect(app(MailTemplateRegistry::class)->all())
                 ->map(fn (array $template) => Section::make($template['name'])
                     ->description($template['description'])
-                    ->footerActions([$this->sendTestAction($template['key'], $template['name'])])
+                    ->footerActions([
+                        Action::make('sendTest')->arguments(['template' => $template['key']]),
+                    ])
                     ->schema([
                         Text::make($template['transactional']
                             ? __('Transactional — no unsubscribe link.')
@@ -59,12 +59,18 @@ class MailTemplates extends Page
         );
     }
 
-    private function sendTestAction(string $key, string $name): Action
+    /**
+     * One action, re-used by every section. Which template it sends comes from
+     * the arguments the section passes in.
+     */
+    public function sendTestAction(): Action
     {
-        return Action::make("send_test_{$key}")
+        return Action::make('sendTest')
             ->label(__('Send test email'))
             ->icon('heroicon-o-paper-airplane')
-            ->modalHeading(__('Send a test of ":name"', ['name' => $name]))
+            ->modalHeading(fn (array $arguments): string => __('Send a test of ":name"', [
+                'name' => $this->templateName($arguments['template'] ?? ''),
+            ]))
             ->modalSubmitActionLabel(__('Send'))
             ->schema([
                 TextInput::make('email')
@@ -73,7 +79,8 @@ class MailTemplates extends Page
                     ->required()
                     ->default(fn (): ?string => config('platform.test_email_recipient') ?? auth()->user()?->email),
             ])
-            ->action(function (array $data) use ($key, $name): void {
+            ->action(function (array $arguments, array $data): void {
+                $key = $arguments['template'] ?? '';
                 $mailable = app(MailTemplateRegistry::class)->sample($key, auth()->user());
 
                 if ($mailable === null) {
@@ -100,9 +107,17 @@ class MailTemplates extends Page
 
                 Notification::make()
                     ->title(__('Test email queued'))
-                    ->body(__('":name" is on its way to :email.', ['name' => $name, 'email' => $data['email']]))
+                    ->body(__('":name" is on its way to :email.', [
+                        'name' => $this->templateName($key),
+                        'email' => $data['email'],
+                    ]))
                     ->success()
                     ->send();
             });
+    }
+
+    private function templateName(string $key): string
+    {
+        return app(MailTemplateRegistry::class)->find($key)['name'] ?? $key;
     }
 }

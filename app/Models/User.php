@@ -26,6 +26,15 @@ class User extends Authenticatable implements FilamentUser, HasAvatar, MustVerif
     use HasFactory, HasRoles, Notifiable, SoftDeletes;
 
     /**
+     * A user who has just been made is pending until someone says otherwise.
+     *
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'status' => UserStatus::Pending->value,
+    ];
+
+    /**
      * @return array<string, string>
      */
     protected function casts(): array
