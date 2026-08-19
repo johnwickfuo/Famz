@@ -47,6 +47,24 @@ return [
             'report' => false,
         ],
 
+        /*
+         * Course material.
+         *
+         * Under storage/app, never under public/, and with no `url` key at all
+         * — Storage::url() on this disk throws rather than quietly handing back
+         * a path somebody could paste into a browser. There is no symlink to
+         * it and there must never be: the only route to these bytes is the
+         * signed, enrolment-checked controller.
+         */
+        'course-content' => [
+            'driver' => 'local',
+            'root' => storage_path('app/course-content'),
+            'serve' => false,
+            'visibility' => 'private',
+            'throw' => true,
+            'report' => false,
+        ],
+
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),

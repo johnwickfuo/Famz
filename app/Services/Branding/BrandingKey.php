@@ -22,6 +22,16 @@ enum BrandingKey: string
     case Favicon = 'company_favicon';
     case SocialLinks = 'company_social_links';
 
+    /**
+     * Who signs a certificate, and in what capacity.
+     *
+     * Identity, not academy configuration: the same block would sign a letter
+     * or a receipt, and it has to change with the company name rather than
+     * being typed again somewhere else.
+     */
+    case SignatoryName = 'company_signatory_name';
+    case SignatoryTitle = 'company_signatory_title';
+
     public const GROUP = 'branding';
 
     /**

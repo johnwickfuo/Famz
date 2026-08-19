@@ -26,6 +26,16 @@ enum LedgerType: string
     case Reversal = 'reversal';
 
     /**
+     * A course sold by the company itself.
+     *
+     * Its own type rather than Commission, because it is not a cut of somebody
+     * else's sale — the whole amount is the platform's, there is no seller and
+     * nothing is held. Folding it into commission would make the marketplace
+     * look twice as profitable as it is.
+     */
+    case CourseSale = 'course_sale';
+
+    /**
      * @return array<int, string>
      */
     public static function values(): array
@@ -43,6 +53,7 @@ enum LedgerType: string
             self::Adjustment => __('Adjustment'),
             self::MentorshipEarning => __('Mentorship'),
             self::Reversal => __('Reversal'),
+            self::CourseSale => __('Course sale'),
         };
     }
 
