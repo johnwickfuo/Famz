@@ -3,6 +3,9 @@
 namespace App\Mail;
 
 use App\Enums\UserStatus;
+use App\Models\BuyerRequest;
+use App\Models\Offer;
+use App\Models\Product;
 use App\Models\User;
 use Illuminate\Support\Str;
 
@@ -41,6 +44,27 @@ class MailTemplateRegistry
                 'transactional' => true,
             ],
             [
+                'key' => 'offer-received',
+                'class' => OfferReceivedMail::class,
+                'name' => __('Offer received'),
+                'description' => __('Sent when somebody makes an offer on a listing or answers a wanted ad.'),
+                'transactional' => true,
+            ],
+            [
+                'key' => 'offer-accepted',
+                'class' => OfferAcceptedMail::class,
+                'name' => __('Offer accepted'),
+                'description' => __('Sent to both sides. The buyer\'s copy carries the private checkout link.'),
+                'transactional' => true,
+            ],
+            [
+                'key' => 'buyer-request-reviewed',
+                'class' => BuyerRequestReviewedMail::class,
+                'name' => __('Buyer request reviewed'),
+                'description' => __('Sent when an administrator publishes a wanted ad, or declines to.'),
+                'transactional' => true,
+            ],
+            [
                 'key' => 'announcement',
                 'class' => PlatformAnnouncementMail::class,
                 'name' => __('Platform announcement'),
@@ -73,6 +97,12 @@ class MailTemplateRegistry
         $user ??= $this->placeholderUser();
 
         return match ($template['class']) {
+            OfferReceivedMail::class => new OfferReceivedMail($this->sampleOffer($user), '/seller/offers'),
+            OfferAcceptedMail::class => new OfferAcceptedMail($this->sampleOffer($user), null, forBuyer: true),
+            BuyerRequestReviewedMail::class => new BuyerRequestReviewedMail(
+                $this->sampleRequest($user),
+                approved: true,
+            ),
             WelcomeMail::class => new WelcomeMail($user),
             AccountActivatedMail::class => new AccountActivatedMail($user),
             CertificateIssuedMail::class => new CertificateIssuedMail(
@@ -92,6 +122,62 @@ class MailTemplateRegistry
     /**
      * A user that exists only for the duration of a preview.
      */
+    /**
+     * A believable offer, built in memory and never saved.
+     *
+     * The templates read the offer and whatever it is about, so the preview
+     * has to carry both — a sample that renders a blank line teaches an
+     * administrator nothing about their branding.
+     */
+    private function sampleOffer(User $user): Offer
+    {
+        $product = new Product([
+            'name' => __('Layers mash, 25kg bag'),
+            'slug' => 'layers-mash-25kg',
+        ]);
+        $product->id = 0;
+        $product->exists = false;
+
+        $offer = new Offer;
+        $offer->forceFill([
+            'quantity' => 20,
+            'unit_price_kobo' => 1_650_000,
+            'total_price_kobo' => 33_000_000,
+            'message' => __('Can you do better for twenty bags? I collect myself.'),
+            'expires_at' => now()->addDays(3),
+        ]);
+
+        $offer->setRelation('offerable', $product);
+        $offer->setRelation('initiator', $user);
+
+        return $offer;
+    }
+
+    private function sampleRequest(User $user): BuyerRequest
+    {
+        $request = new BuyerRequest([
+            'title' => __('Wanted: 300 point-of-lay pullets'),
+            'quantity' => 300,
+            'unit' => 'bird',
+            'delivery_state' => 'Oyo',
+            'delivery_lga' => 'Akinyele',
+        ]);
+
+        $request->forceFill([
+            'slug' => 'wanted-300-point-of-lay-pullets',
+            'reference' => 'REQ-000000-SAMPLE',
+            'budget_min_kobo' => 250_000,
+            'budget_max_kobo' => 320_000,
+            'expires_at' => now()->addDays(14),
+        ]);
+
+        $request->id = 0;
+        $request->exists = false;
+        $request->setRelation('buyer', $user);
+
+        return $request;
+    }
+
     private function placeholderUser(): User
     {
         $user = new User([

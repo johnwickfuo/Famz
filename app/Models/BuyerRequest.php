@@ -54,6 +54,12 @@ class BuyerRequest extends Model
         static::creating(function (self $request): void {
             $request->reference ??= static::newReference();
             $request->slug ??= static::uniqueSlug($request->title);
+
+            // Set here rather than left to the column default: a model saved
+            // and then acted on without a refresh would otherwise have a null
+            // status in memory, and every `status === PendingApproval` check
+            // would quietly be false.
+            $request->status ??= BuyerRequestStatus::PendingApproval;
         });
     }
 

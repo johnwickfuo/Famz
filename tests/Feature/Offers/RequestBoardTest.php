@@ -172,11 +172,14 @@ it('turns away somebody who is not a seller at all', function () {
 // The buyer's own screens
 // ---------------------------------------------------------------------------
 
-it('lays every offer out for the buyer, cheapest first', function () {
+it('lays every offer out for the buyer, cheapest each first', function () {
     [, $dear] = ($this->makeSeller)($this->poultry);
     [, $cheap] = ($this->makeSeller)($this->poultry);
 
-    $this->offers->offerOnRequest($this->request, $dear, 100, 1_200_000);
+    // The dearer seller offers less, so its TOTAL is the smaller of the two.
+    // Ordering on totals would put it first and call it the best price, which
+    // is exactly the mistake this ordering exists to avoid.
+    $this->offers->offerOnRequest($this->request, $dear, 20, 1_200_000);
     $this->offers->offerOnRequest($this->request->fresh(), $cheap, 100, 880_000);
 
     $this->actingAs($this->buyer)

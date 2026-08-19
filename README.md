@@ -232,6 +232,83 @@ tables by different code, so when they agree it means something.
 **Seller → Money** is the same ledger from one seller's side: what is ready to
 withdraw, what is still held, sales by month, and a filterable statement.
 
+## Offers: one engine, two features
+
+A buyer haggling over a listing and a seller answering a wanted ad are the same
+transaction from opposite ends: somebody proposes a price and a quantity,
+somebody else says yes, no, or how about this. So there is one `offers` table
+with a polymorphic `offerable`, and one `OfferService` behind both. Writing it
+twice would have meant two sets of expiry rules and eventually two different
+answers to "what did we agree".
+
+A counter-offer is a **new row** whose `parent_offer_id` is the offer it
+answers; the answered one is marked `countered` and never rewritten. So
+`$offer->chain()` reads the whole argument back in order, and `round()` says how
+far in any link sits. Roles swap with every counter: whoever answers becomes the
+one proposing.
+
+### Haggling on a listing
+
+Available on any product with `is_negotiable`. The seller answers in
+**Seller → Offers**. On acceptance the buyer gets a private checkout at the
+agreed price, good for `negotiated_checkout_hours` (default 48), and that much
+stock is held back.
+
+The reservation is its own counter on `products`, not a decrement of
+`stock_quantity` — those mean different things, and a decrement would make a
+reservation indistinguishable from a sale to the seller looking at their own
+shelf. `availableStock()` is `stock_quantity − reserved_quantity`, and it is
+what the cart, the catalogue and the product page all read.
+
+Everything after the order exists is the ordinary Phase 3 path: same commission
+split, same gateway, same webhook, same escrow. A negotiated order is a normal
+order that happened to start with an argument.
+
+### The wanted-ad board
+
+```
+/requests                 the board, public
+/requests/new             post one
+/requests/mine            your own
+/requests/{slug}/manage   compare what you have been offered
+```
+
+Requests are moderated in **Admin → Buyer requests** before publication,
+because an unmoderated board fills with phone numbers and scams faster than
+anything else on a marketplace. The clock starts at approval, not submission: an
+ad that sat in a queue for four days should not lose four days of its life.
+
+Only an approved seller trading in the category may answer, and a seller
+registered for a parent category answers anything beneath it — nobody registers
+against every leaf of a tree this deep.
+
+**The board shows how many offers a request has drawn and never what any of them
+were.** A board where the best price so far is visible is a board where
+everybody shaves a naira off it and nobody bids their real number. The buyer's
+own comparison screen orders by **price each**, not by total: a seller offering
+half the order has half the total, and badging that "cheapest" would send buyers
+at the wrong offer for a reason that has nothing to do with price.
+
+```bash
+php artisan offers:sweep   # scheduled hourly
+```
+
+One command does four things in an order that matters: requests expire first, so
+a seller is told the request closed rather than that their offer merely lapsed;
+then buyers are warned three days out (once, stamped); then offers lapse; then
+stock nobody came for is released.
+
+### Notifications
+
+Every state change goes out on two channels — a database row for the in-app list
+at `/notifications`, and an email for the people who are not looking at the app,
+which on a market stall is most of the time. All queued.
+
+The mail half is an ordinary `BrandedMailable`, so notifications go through the
+same branded layout, sender name and `{company}` expansion as everything else.
+There is one mail path in this application and notifications are not an
+exception to it.
+
 ## Roles
 
 One `users` table. A user may hold any number of roles at once — they are

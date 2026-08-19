@@ -21,9 +21,15 @@ const working = ref(false);
 const liveOffers = computed(() => props.offers.filter((offer) => offer.is_open));
 const settledOffers = computed(() => props.offers.filter((offer) => !offer.is_open));
 
-// Sorted cheapest first by the server, so the first live one is the best price.
+/*
+ * Cheapest by unit price, never by total.
+ *
+ * A seller offering half the order has half the total, and badging that
+ * "cheapest" would send buyers at the wrong offer for a reason that has
+ * nothing to do with price.
+ */
 const cheapestKobo = computed(() =>
-    liveOffers.value.length ? Math.min(...liveOffers.value.map((o) => o.total_kobo)) : null,
+    liveOffers.value.length ? Math.min(...liveOffers.value.map((o) => o.unit_price_kobo)) : null,
 );
 const fastest = computed(() => {
     const withDays = liveOffers.value.filter((o) => o.delivery_days !== null);
@@ -134,8 +140,8 @@ function closeRequest() {
                             </div>
 
                             <div class="flex shrink-0 flex-col items-end gap-1">
-                                <Badge v-if="offer.total_kobo === cheapestKobo" variant="active" size="sm" dot>
-                                    Cheapest
+                                <Badge v-if="offer.unit_price_kobo === cheapestKobo" variant="active" size="sm" dot>
+                                    Cheapest each
                                 </Badge>
                                 <Badge
                                     v-if="fastest !== null && offer.delivery_days === fastest"
@@ -156,9 +162,14 @@ function closeRequest() {
                         </div>
                         <div class="flex items-baseline justify-between gap-3">
                             <dt class="text-muted">Quantity</dt>
-                            <dd class="figures">
-                                {{ offer.quantity }}
-                                <span v-if="!offer.covers_all" class="text-cockscomb">(part)</span>
+                            <dd class="figures text-right">
+                                {{ offer.quantity }} of {{ request.quantity }}
+                                <span
+                                    v-if="!offer.covers_all"
+                                    class="block text-xs font-semibold text-cockscomb dark:text-cockscomb-300"
+                                >
+                                    {{ request.quantity - offer.quantity }} still to find
+                                </span>
                             </dd>
                         </div>
                         <div v-if="offer.delivery_days !== null" class="flex items-baseline justify-between gap-3">

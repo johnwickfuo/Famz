@@ -229,7 +229,15 @@ class BuyerRequestController extends Controller
                 'can_close' => ! $buyerRequest->status->isFinished(),
             ],
             'offers' => $buyerRequest->offers
-                ->sortBy('total_price_kobo')
+                /*
+                 * By unit price, not by total.
+                 *
+                 * Totals are not comparable when sellers offer different
+                 * quantities: somebody offering fifty birds looks cheapest on
+                 * a total and is nothing of the kind. Price each is the only
+                 * figure that compares like with like.
+                 */
+                ->sortBy('unit_price_kobo')
                 ->values()
                 ->map(fn (Offer $offer): array => [
                     'id' => $offer->id,
