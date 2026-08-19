@@ -16,6 +16,9 @@ use App\Policies\OfferPolicy;
 use App\Policies\ProductPolicy;
 use App\Policies\SellerProfilePolicy;
 use App\Policies\SubOrderPolicy;
+use App\Services\Ai\GeminiTagResolver;
+use App\Services\Ai\NullTagResolver;
+use App\Services\Ai\TagResolver;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
@@ -24,7 +27,20 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        //
+        /*
+         * The AI layer, chosen once at boot.
+         *
+         * With no key configured this resolves to NullTagResolver, which always
+         * declines — so the keyword fallback is what runs in development, in
+         * the tests, and on any deployment where nobody has signed up to
+         * Google. The fallback is the path that must never break, so it is the
+         * path that runs by default rather than only in an emergency.
+         */
+        $this->app->singleton(TagResolver::class, function (): TagResolver {
+            $gemini = new GeminiTagResolver;
+
+            return $gemini->isConfigured() ? $gemini : new NullTagResolver;
+        });
     }
 
     public function boot(): void

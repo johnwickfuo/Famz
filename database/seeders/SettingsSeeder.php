@@ -55,6 +55,27 @@ class SettingsSeeder extends Seeder
         // Days before a wanted ad closes that its author is warned.
         'buyer_request_warning_days' => ['type' => 'int', 'value' => '3'],
 
+        /*
+         * Mentorship. The platform takes a cut of an engagement exactly as it
+         * does of a sale, but it is its own rate: an introduction is a
+         * different service from a shipment and pricing them together would be
+         * a coincidence rather than a decision.
+         */
+        'mentorship_commission_percent' => ['type' => 'float', 'value' => '15'],
+
+        /*
+         * How long a client has to confirm that a mentor finished the work
+         * before silence counts as agreement. A mentor must not be left unpaid
+         * because somebody stopped reading their email.
+         */
+        'mentorship_confirmation_days' => ['type' => 'int', 'value' => '7'],
+
+        // How long after an engagement ends either side may still dispute it.
+        'mentorship_dispute_window_days' => ['type' => 'int', 'value' => '7'],
+
+        // How long after a mentorship period ends the next invoice is due.
+        'mentorship_invoice_grace_days' => ['type' => 'int', 'value' => '3'],
+
         // How long after a delivery is marked a buyer may still dispute it.
         // Deliberately not shorter than the escrow window: a buyer must never
         // lose the right to complain before the money has gone.

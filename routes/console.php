@@ -19,3 +19,10 @@ Schedule::command('payouts:run')->dailyAt('09:00')->withoutOverlapping();
 // Hourly rather than daily: an offer promised as good for 72 hours should not
 // still be acceptable most of a day after it lapsed.
 Schedule::command('offers:sweep')->hourly()->withoutOverlapping();
+
+/*
+ * Mentorship: confirming work nobody answered for, and billing the next period.
+ * Hourly, so the seven days a client was promised is roughly the seven days
+ * they get rather than up to eight.
+ */
+Schedule::command('mentorship:sweep')->hourly()->withoutOverlapping();

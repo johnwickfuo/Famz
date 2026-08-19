@@ -16,9 +16,14 @@ use Illuminate\Support\Facades\Storage;
 /**
  * A buyer saying something went wrong.
  *
- * While one of these is live the sub-order's money is frozen: escrow cannot
- * auto-release and the seller cannot be paid. That freeze is the entire reason
- * a dispute exists, so `isLive()` is consulted before anything releases funds.
+ * While one of these is live the money is frozen: escrow cannot auto-release
+ * and nobody can be paid. That freeze is the entire reason a dispute exists, so
+ * `isLive()` is consulted before anything releases funds.
+ *
+ * A dispute has exactly one subject — a sub-order or a mentorship engagement.
+ * The thread, the statuses, the admin queue and the conservation law are the
+ * same for both; only the arithmetic of a refund differs, and that lives in the
+ * service rather than here.
  */
 #[Fillable(['reason', 'description', 'evidence_images'])]
 class Dispute extends Model
@@ -43,6 +48,14 @@ class Dispute extends Model
     public function subOrder(): BelongsTo
     {
         return $this->belongsTo(SubOrder::class);
+    }
+
+    /**
+     * @return BelongsTo<MentorshipEngagement, $this>
+     */
+    public function engagement(): BelongsTo
+    {
+        return $this->belongsTo(MentorshipEngagement::class, 'mentorship_engagement_id');
     }
 
     /**
@@ -74,12 +87,46 @@ class Dispute extends Model
         return $this->status->isLive();
     }
 
+    public function isMarketplace(): bool
+    {
+        return $this->sub_order_id !== null;
+    }
+
+    public function isMentorship(): bool
+    {
+        return $this->mentorship_engagement_id !== null;
+    }
+
     /**
-     * What is actually at stake: the seller's part of the order, delivery
-     * included, because a buyer who got nothing paid for the delivery too.
+     * The thing being argued about, whichever kind it is.
+     */
+    public function subject(): SubOrder|MentorshipEngagement|null
+    {
+        return $this->isMentorship() ? $this->engagement : $this->subOrder;
+    }
+
+    /**
+     * The reference a human would quote down the phone.
+     */
+    public function subjectReference(): string
+    {
+        return (string) ($this->subject()?->reference ?? '—');
+    }
+
+    /**
+     * What is actually at stake.
+     *
+     * On a sub-order that is the seller's part with delivery included, because
+     * a buyer who got nothing paid for the delivery too. On mentorship it is
+     * what has actually been paid so far — on a monthly engagement, arguing
+     * about month three does not put months one and two back in play.
      */
     public function amountAtStakeKobo(): int
     {
+        if ($this->isMentorship()) {
+            return $this->engagement?->paidToDateKobo() ?? 0;
+        }
+
         return $this->subOrder->grandTotalKobo();
     }
 
@@ -96,6 +143,16 @@ class Dispute extends Model
     public function scopeLive(Builder $query): Builder
     {
         return $query->whereIn('status', [DisputeStatus::Open, DisputeStatus::UnderReview]);
+    }
+
+    public function scopeMarketplace(Builder $query): Builder
+    {
+        return $query->whereNotNull('sub_order_id');
+    }
+
+    public function scopeMentorship(Builder $query): Builder
+    {
+        return $query->whereNotNull('mentorship_engagement_id');
     }
 
     /**

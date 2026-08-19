@@ -4,6 +4,7 @@ namespace App\Services\Wallet;
 
 use App\Enums\LedgerState;
 use App\Enums\LedgerType;
+use App\Models\MentorshipInvoice;
 use App\Models\SubOrder;
 use App\Models\User;
 use App\Models\WalletTransaction;
@@ -84,6 +85,12 @@ class WalletService
     // -----------------------------------------------------------------------
 
     /**
+     * Write one entry.
+     *
+     * An entry belongs to a sub-order or to a mentorship invoice, never both:
+     * marketplace money hangs off the seller's part of an order, mentorship
+     * money off the billing period it was paid for.
+     *
      * @param  array<string, mixed>  $meta
      */
     public function record(
@@ -95,6 +102,7 @@ class WalletService
         ?SubOrder $subOrder = null,
         array $meta = [],
         User|int|null $createdBy = null,
+        ?MentorshipInvoice $invoice = null,
     ): WalletTransaction {
         if ($amountKobo === 0) {
             // A zero entry is either a bug or noise, and it makes the ledger
@@ -105,6 +113,7 @@ class WalletService
         return WalletTransaction::query()->create([
             'user_id' => $user instanceof User ? $user->getKey() : $user,
             'sub_order_id' => $subOrder?->getKey(),
+            'mentorship_invoice_id' => $invoice?->getKey(),
             'type' => $type,
             'amount_kobo' => $amountKobo,
             'state' => $state,

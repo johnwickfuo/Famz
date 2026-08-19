@@ -4,13 +4,18 @@ namespace App\Services\Disputes;
 
 use App\Enums\DisputeReason;
 use App\Enums\DisputeStatus;
+use App\Enums\EngagementStatus;
+use App\Enums\InvoiceStatus;
 use App\Enums\LedgerState;
 use App\Enums\LedgerType;
 use App\Enums\SubOrderStatus;
 use App\Models\Dispute;
 use App\Models\DisputeMessage;
+use App\Models\MentorshipEngagement;
+use App\Models\MentorshipInvoice;
 use App\Models\SubOrder;
 use App\Models\User;
+use App\Services\Mentorship\EngagementService;
 use App\Services\Orders\FulfilmentService;
 use App\Services\Settlement\SettlementManager;
 use App\Services\Wallet\WalletService;
@@ -34,6 +39,12 @@ use RuntimeException;
  *
  * That is what makes a resolution auditable. A path that quietly leaves a few
  * naira unaccounted for is not a rounding problem, it is a hole.
+ *
+ * The same class handles mentorship disputes, because a dispute is a dispute:
+ * one thread, one set of statuses, one admin queue, one conservation law. Only
+ * the arithmetic of a refund differs — mentorship has no delivery fee to
+ * apportion and no goods to send back — so that part lives in its own methods
+ * below rather than in a branch inside the marketplace ones.
  */
 class DisputeService
 {
@@ -190,6 +201,326 @@ class DisputeService
         $dispute->forceFill(['status' => DisputeStatus::UnderReview])->save();
 
         return $dispute;
+    }
+
+    // -----------------------------------------------------------------------
+    // Mentorship
+    // -----------------------------------------------------------------------
+
+    /**
+     * How long after an engagement finishes either side may still complain.
+     */
+    public function engagementWindowDays(): int
+    {
+        return max(0, (int) settings('mentorship_dispute_window_days', 7));
+    }
+
+    public function liveDisputeForEngagement(MentorshipEngagement $engagement): ?Dispute
+    {
+        return Dispute::query()
+            ->where('mentorship_engagement_id', $engagement->getKey())
+            ->live()
+            ->first();
+    }
+
+    /**
+     * Whether this person may complain about this engagement.
+     *
+     * EITHER party, unlike the marketplace where only a buyer may raise one. A
+     * mentor whose client has vanished after taking three months of advice has
+     * a complaint worth hearing, and no other way to make it.
+     */
+    public function canRaiseOnEngagement(MentorshipEngagement $engagement, User $user): bool
+    {
+        $isParty = $engagement->client_id === $user->getKey()
+            || $engagement->mentor?->user_id === $user->getKey();
+
+        if (! $isParty) {
+            return false;
+        }
+
+        // Nothing to argue about before any money has moved.
+        if ($engagement->paidInvoices()->count() < 1) {
+            return false;
+        }
+
+        if ($this->liveDisputeForEngagement($engagement) !== null) {
+            return false;
+        }
+
+        if ($engagement->status->isLive()) {
+            return $engagement->status !== EngagementStatus::Disputed;
+        }
+
+        // After it finished, only inside the window.
+        return $engagement->completed_at !== null
+            && $engagement->completed_at->copy()->addDays($this->engagementWindowDays())->isFuture();
+    }
+
+    /**
+     * Somebody says the engagement went wrong.
+     *
+     * This freezes it: moving to Disputed takes it out of the auto-confirm
+     * sweep, so a client who complains on day six does not have the work
+     * confirmed out from under them on day seven.
+     *
+     * @param  array<int, string>  $evidenceImages
+     */
+    public function raiseOnEngagement(
+        MentorshipEngagement $engagement,
+        User $raiser,
+        DisputeReason $reason,
+        string $description,
+        array $evidenceImages = [],
+    ): Dispute {
+        if (trim($description) === '') {
+            throw new RuntimeException(__('Tell us what went wrong.'));
+        }
+
+        if (! $this->canRaiseOnEngagement($engagement, $raiser)) {
+            throw new RuntimeException(
+                $this->liveDisputeForEngagement($engagement) !== null
+                    ? __('There is already an open dispute on this engagement.')
+                    : __('This engagement cannot be disputed.')
+            );
+        }
+
+        return DB::transaction(function () use ($engagement, $raiser, $reason, $description, $evidenceImages): Dispute {
+            $dispute = new Dispute;
+
+            $dispute->forceFill([
+                'mentorship_engagement_id' => $engagement->getKey(),
+                'raised_by' => $raiser->getKey(),
+                'reason' => $reason,
+                'description' => trim($description),
+                'evidence_images' => $evidenceImages === [] ? null : array_values($evidenceImages),
+                'status' => DisputeStatus::Open,
+            ])->save();
+
+            // Out of the auto-confirm sweep, and out of reach of a release.
+            $engagement->forceFill([
+                'status' => EngagementStatus::Disputed,
+                'auto_confirm_at' => null,
+            ])->save();
+
+            $this->comment($dispute, $raiser, trim($description));
+
+            return $dispute->refresh();
+        });
+    }
+
+    /**
+     * Decided for the mentor: they are paid.
+     *
+     * Nothing moves between accounts — the money is already sitting against
+     * this engagement's invoices, it was only frozen — so this path is balanced
+     * by having nothing to balance.
+     */
+    public function resolveEngagementForMentor(Dispute $dispute, User $admin, string $note): Dispute
+    {
+        $this->assertLive($dispute);
+
+        return DB::transaction(function () use ($dispute, $admin, $note): Dispute {
+            $engagement = $dispute->engagement;
+
+            foreach ($engagement->invoices()->where('status', InvoiceStatus::Paid)->get() as $invoice) {
+                app(EngagementService::class)->release($invoice);
+            }
+
+            $engagement->forceFill([
+                'status' => EngagementStatus::Completed,
+                'completed_at' => $engagement->completed_at ?? now(),
+                'client_confirmed_at' => $engagement->client_confirmed_at ?? now(),
+            ])->save();
+
+            $engagement->mentor?->refreshStandings();
+
+            return $this->close($dispute, $admin, DisputeStatus::ResolvedSeller, $note, 0);
+        });
+    }
+
+    /**
+     * Decided for the client: everything paid goes back.
+     */
+    public function resolveEngagementForClient(Dispute $dispute, User $admin, string $note): Dispute
+    {
+        $this->assertLive($dispute);
+
+        return $this->refundEngagement(
+            $dispute,
+            $admin,
+            $dispute->amountAtStakeKobo(),
+            $note,
+            DisputeStatus::ResolvedBuyer,
+        );
+    }
+
+    /**
+     * Split the difference on an engagement.
+     */
+    public function resolveEngagementPartially(Dispute $dispute, User $admin, int $refundKobo, string $note): Dispute
+    {
+        $this->assertLive($dispute);
+
+        $stake = $dispute->amountAtStakeKobo();
+
+        if ($refundKobo <= 0) {
+            throw new RuntimeException(__('A partial refund has to be more than nothing. Decide for the mentor instead.'));
+        }
+
+        if ($refundKobo >= $stake) {
+            throw new RuntimeException(__('That is everything paid. Refund it in full instead.'));
+        }
+
+        return $this->refundEngagement($dispute, $admin, $refundKobo, $note, DisputeStatus::ResolvedPartial);
+    }
+
+    /**
+     * Move `$refundKobo` back to the client.
+     *
+     * Taken from the mentor and the platform in the same proportion as the
+     * original split, so neither pays for the other's share of a compromise —
+     * refund a third of the engagement and the platform gives up a third of its
+     * commission, no more and no less.
+     *
+     * Held entries and their counter-entries cancel where they sit; anything
+     * already released is released first on a partial so the two sides of the
+     * correction end up in the same state, exactly as on a sub-order.
+     */
+    private function refundEngagement(
+        Dispute $dispute,
+        User $admin,
+        int $refundKobo,
+        string $note,
+        DisputeStatus $status,
+    ): Dispute {
+        return DB::transaction(function () use ($dispute, $admin, $refundKobo, $note, $status): Dispute {
+            $engagement = $dispute->engagement;
+            $stake = $engagement->paidToDateKobo();
+            $engagements = app(EngagementService::class);
+
+            if ($refundKobo < $stake) {
+                foreach ($engagement->invoices()->where('status', InvoiceStatus::Paid)->get() as $invoice) {
+                    $engagements->release($invoice);
+                }
+            }
+
+            $split = $this->shareOfEngagementRefund($engagement, $refundKobo);
+
+            // Newest period first: a refund on a monthly engagement is nearly
+            // always about the month just gone.
+            $invoices = $engagement->invoices()
+                ->whereIn('status', [InvoiceStatus::Paid, InvoiceStatus::Released])
+                ->orderByDesc('sequence')
+                ->get();
+
+            $anchor = $invoices->first();
+
+            $this->clawBackEngagement(
+                $anchor,
+                $engagement->mentor->user_id,
+                $split['mentor_kobo'],
+                $note,
+                $admin,
+                $refundKobo >= $stake,
+            );
+
+            $this->clawBackEngagement(
+                $anchor,
+                null,
+                $split['platform_kobo'],
+                $note,
+                $admin,
+                $refundKobo >= $stake,
+            );
+
+            $this->wallet->record(
+                user: $engagement->client_id,
+                type: LedgerType::Refund,
+                amountKobo: $refundKobo,
+                // Refunded: it counts toward no balance, because the money goes
+                // back to their card rather than into a wallet.
+                state: LedgerState::Refunded,
+                description: __('Dispute refund on :reference', ['reference' => $engagement->reference]),
+                meta: [
+                    'dispute_id' => $dispute->getKey(),
+                    'engagement_reference' => $engagement->reference,
+                    'of_total_kobo' => $stake,
+                    'from_mentor_kobo' => $split['mentor_kobo'],
+                    'from_platform_kobo' => $split['platform_kobo'],
+                ],
+                createdBy: $admin->getKey(),
+                invoice: $anchor,
+            );
+
+            $full = $refundKobo >= $stake;
+
+            if ($full) {
+                $engagement->invoices()
+                    ->whereIn('status', [InvoiceStatus::Paid, InvoiceStatus::Released])
+                    ->update(['status' => InvoiceStatus::Refunded, 'updated_at' => now()]);
+            }
+
+            $engagement->forceFill([
+                'status' => $full ? EngagementStatus::Refunded : EngagementStatus::Completed,
+                'completed_at' => $engagement->completed_at ?? now(),
+                'auto_confirm_at' => null,
+            ])->save();
+
+            $engagement->mentor?->refreshStandings();
+
+            return $this->close($dispute, $admin, $status, $note, $refundKobo);
+        });
+    }
+
+    /**
+     * Take money back off one account, in the state it is actually sitting in.
+     */
+    private function clawBackEngagement(
+        ?MentorshipInvoice $invoice,
+        ?int $userId,
+        int $amountKobo,
+        string $reason,
+        User $admin,
+        bool $full,
+    ): void {
+        if ($amountKobo <= 0 || $invoice === null) {
+            return;
+        }
+
+        $this->wallet->record(
+            user: $userId,
+            type: LedgerType::Reversal,
+            amountKobo: -$amountKobo,
+            // On a full refund the money never left escrow, so the correction
+            // is made there; on a partial everything was released first, so it
+            // is made in released.
+            state: $full ? LedgerState::Held : LedgerState::Released,
+            description: __('Dispute on :reference: :reason', [
+                'reference' => $invoice->engagement?->reference ?? $invoice->reference,
+                'reason' => $reason,
+            ]),
+            createdBy: $admin->getKey(),
+            invoice: $invoice,
+        );
+    }
+
+    /**
+     * How an engagement refund is shared between the mentor and the platform.
+     *
+     * Straight proportion of the original split, with the mentor's share taken
+     * by subtraction so the two always add back to the refund exactly.
+     *
+     * @return array{mentor_kobo: int, platform_kobo: int}
+     */
+    private function shareOfEngagementRefund(MentorshipEngagement $engagement, int $refundKobo): array
+    {
+        $split = Commission::on($refundKobo, (float) $engagement->commission_percent_snapshot);
+
+        return [
+            'platform_kobo' => $split->commissionKobo,
+            'mentor_kobo' => $refundKobo - $split->commissionKobo,
+        ];
     }
 
     // -----------------------------------------------------------------------
@@ -457,20 +788,35 @@ class DisputeService
             'resolved_at' => now(),
         ])->save();
 
-        $this->comment($dispute, $admin, $this->decisionLine($status, $refundKobo, $note));
+        $this->comment($dispute, $admin, $this->decisionLine($dispute, $status, $refundKobo, $note));
 
         return $dispute->refresh();
     }
 
-    private function decisionLine(DisputeStatus $status, int $refundKobo, string $note): string
+    /**
+     * The line written into the thread when a decision is made.
+     *
+     * Worded for whichever kind of dispute this is: telling a mentor that "the
+     * seller" keeps the money is the sort of thing that makes people distrust
+     * a decision that was actually correct.
+     */
+    private function decisionLine(Dispute $dispute, DisputeStatus $status, int $refundKobo, string $note): string
     {
+        $paid = $dispute->isMentorship() ? __('the client') : __('the buyer');
+        $paidTo = $dispute->isMentorship() ? __('the mentor') : __('the seller');
+
         $decision = match ($status) {
-            DisputeStatus::ResolvedBuyer => __('Refunded in full: :amount goes back to the buyer.', [
+            DisputeStatus::ResolvedBuyer => __('Refunded in full: :amount goes back to :party.', [
                 'amount' => Money::fromKobo($refundKobo),
+                'party' => $paid,
             ]),
-            DisputeStatus::ResolvedSeller => __('Decided for the seller. The payment is released to them.'),
-            DisputeStatus::ResolvedPartial => __(':amount goes back to the buyer; the seller keeps the rest.', [
+            DisputeStatus::ResolvedSeller => __('Decided for :party. The payment is released to them.', [
+                'party' => $paidTo,
+            ]),
+            DisputeStatus::ResolvedPartial => __(':amount goes back to :party; :other keeps the rest.', [
                 'amount' => Money::fromKobo($refundKobo),
+                'party' => $paid,
+                'other' => $paidTo,
             ]),
             default => __('Closed with no money moved.'),
         };

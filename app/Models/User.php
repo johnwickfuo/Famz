@@ -79,6 +79,29 @@ class User extends Authenticatable implements FilamentUser, HasAvatar, MustVerif
     /**
      * The profile row, created on demand so callers never have to null-check.
      */
+    /**
+     * The mentoring identity, for a user who was invited to become a mentor.
+     *
+     * Present only for somebody who came through an invitation: there is no
+     * public route that creates one of these.
+     *
+     * @return HasOne<MentorProfile, $this>
+     */
+    public function mentorProfile(): HasOne
+    {
+        return $this->hasOne(MentorProfile::class);
+    }
+
+    /**
+     * The mentor record this user may take engagements as, or null.
+     */
+    public function activeMentorProfile(): ?MentorProfile
+    {
+        $profile = $this->mentorProfile;
+
+        return $profile?->isBookable() === true ? $profile : null;
+    }
+
     public function profileOrNew(): Profile
     {
         return $this->profile ?? $this->profile()->make();

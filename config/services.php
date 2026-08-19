@@ -73,4 +73,15 @@ return [
         ],
     ],
 
+    /*
+     * The AI layer. Optional by design: with no key set, the resolver declines
+     * and every caller falls back to keyword matching, which is the behaviour
+     * the tests assert. Nothing on this platform stops working without it.
+     */
+    'gemini' => [
+        'key' => env('GEMINI_API_KEY'),
+        'model' => env('GEMINI_MODEL', 'gemini-2.0-flash'),
+        'base_url' => env('GEMINI_BASE_URL', 'https://generativelanguage.googleapis.com/v1beta'),
+    ],
+
 ];

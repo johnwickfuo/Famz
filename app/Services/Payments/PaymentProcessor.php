@@ -7,9 +7,11 @@ use App\Enums\LedgerType;
 use App\Enums\OrderStatus;
 use App\Enums\SubOrderStatus;
 use App\Models\Enrolment;
+use App\Models\MentorshipInvoice;
 use App\Models\Order;
 use App\Models\ProductVariant;
 use App\Models\SubOrder;
+use App\Services\Mentorship\EngagementService;
 use App\Services\Settlement\SettlementManager;
 use App\Services\Wallet\WalletService;
 use Illuminate\Support\Facades\DB;
@@ -30,6 +32,7 @@ class PaymentProcessor
         private readonly PaymentGatewayManager $gateways,
         private readonly SettlementManager $settlement,
         private readonly WalletService $wallet,
+        private readonly EngagementService $engagements,
     ) {}
 
     /**
@@ -118,6 +121,10 @@ class PaymentProcessor
             // nothing for it. Opening the course is what "paid" means there.
             $this->openCourses($locked);
 
+            // Nor does a mentorship order. Activating the engagement — and
+            // holding the money — is what "paid" means there.
+            $this->openMentorship($locked);
+
             return true;
         });
     }
@@ -158,6 +165,27 @@ class PaymentProcessor
                     'order_reference' => $order->reference,
                 ],
             );
+        }
+    }
+
+    /**
+     * Start any mentorship this order paid for.
+     *
+     * The opposite of a course: the money is HELD, not released. Nobody has
+     * earned anything until the work is confirmed, and the platform has not
+     * earned its commission either.
+     */
+    private function openMentorship(Order $order): void
+    {
+        $invoices = MentorshipInvoice::query()
+            ->where('order_id', $order->getKey())
+            ->with('engagement.mentor')
+            ->get();
+
+        foreach ($invoices as $invoice) {
+            // Idempotent inside: a redelivered webhook writes one set of
+            // entries and activates nothing twice.
+            $this->engagements->markInvoicePaid($invoice, $order);
         }
     }
 

@@ -11,6 +11,7 @@ use App\Http\Controllers\CartController;
 use App\Http\Controllers\CatalogueController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\DisputeController;
+use App\Http\Controllers\Mentorship\MentorRegistrationController;
 use App\Http\Controllers\NegotiatedPurchaseController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OfferController;
@@ -40,6 +41,28 @@ Route::get('/requests', [BuyerRequestController::class, 'index'])->name('request
  */
 Route::get('/academy', [AcademyController::class, 'home'])->name('academy.home');
 Route::get('/academy/courses', [AcademyController::class, 'catalogue'])->name('academy.catalogue');
+
+/*
+ * Becoming a mentor. Invitation only, and deliberately not in any navigation:
+ * an administrator sends the signed link by hand. `signed` proves we made the
+ * URL; the controller proves the invitation behind it is still good, which is
+ * the part that actually matters.
+ */
+Route::middleware('noindex')->group(function () {
+    Route::get('/mentors/join/{token}', [MentorRegistrationController::class, 'create'])
+        ->middleware('signed')
+        ->name('mentors.join');
+
+    /*
+     * Not signed, on purpose. The form would have to post back to the exact
+     * signed URL for a signature to survive the round trip, and the signature
+     * was never the lock here anyway: anybody who can reach this route already
+     * holds the token, and the token is checked again — under a row lock —
+     * before a single row is written.
+     */
+    Route::post('/mentors/join/{token}', [MentorRegistrationController::class, 'store'])
+        ->name('mentors.join.store');
+});
 
 // A certificate is checked by whoever is holding the printed copy, which is
 // usually an employer with no account here.
@@ -155,6 +178,10 @@ Route::middleware('auth')->group(function () {
         ->name('academy.certificate.show');
     Route::get('/certificates/{certificate}/pdf', [CertificateController::class, 'pdf'])
         ->name('academy.certificate.pdf');
+
+    // The waiting room a newly registered mentor lands in.
+    Route::get('/mentors/pending', [MentorRegistrationController::class, 'pending'])
+        ->name('mentors.pending');
 
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
     Route::get('/notifications/{notification}', [NotificationController::class, 'read'])

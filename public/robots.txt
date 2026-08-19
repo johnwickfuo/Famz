@@ -1,2 +1,15 @@
 User-agent: *
-Disallow:
+
+# The mentor invitation flow. There is no public link to it anywhere on the
+# site and it will not open without a valid, unused, unexpired token — but a
+# crawler that finds a forwarded link in somebody's public post should not put
+# it in an index. Belt and braces; the token check is the real lock.
+Disallow: /mentors/join
+Disallow: /mentors/join/
+
+# Signed, single-use links to course material and private checkouts. Nothing
+# behind these renders for a crawler anyway.
+Disallow: /academy/content/
+Disallow: /agreed/
+
+Allow: /

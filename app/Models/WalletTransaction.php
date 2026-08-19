@@ -53,6 +53,19 @@ class WalletTransaction extends Model
     }
 
     /**
+     * The billing period this entry belongs to, on a mentorship engagement.
+     *
+     * Exactly one of `subOrder` and `invoice` is set on any entry: marketplace
+     * money hangs off a sub-order, mentorship money off an invoice.
+     *
+     * @return BelongsTo<MentorshipInvoice, $this>
+     */
+    public function invoice(): BelongsTo
+    {
+        return $this->belongsTo(MentorshipInvoice::class, 'mentorship_invoice_id');
+    }
+
+    /**
      * @return BelongsTo<User, $this>
      */
     public function author(): BelongsTo
