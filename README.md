@@ -309,6 +309,91 @@ same branded layout, sender name and `{company}` expansion as everything else.
 There is one mail path in this application and notifications are not an
 exception to it.
 
+## The academy
+
+Courses are written by the company. There is deliberately no instructor role,
+no `instructor_id` "for later" and no revenue share — third-party authoring is a
+different product with different payouts, moderation and liability, and leaving
+the door ajar for it would be an open door dressed up as foresight.
+
+### Course material never leaves the server
+
+Uploaded lesson files live on a private disk at `storage/app/course-content`,
+configured in `config/filesystems.php` with **no `url` key at all**. That is not
+decoration: `Storage::url()` on that disk throws, so any code that tried to turn
+a lesson into a link fails loudly at the point of the mistake instead of quietly
+publishing a guessable path.
+
+The only route to the bytes is `GET /academy/content/{lesson}`, and it checks
+four independent things rather than inferring any of them from the last:
+
+1. the signature is ours and is inside its five minutes (`signed` middleware),
+2. somebody is signed in,
+3. the link was minted **for that somebody** — forwarding it does not transfer it,
+4. they still hold an active enrolment, or the lesson is an open preview.
+
+The fourth is the one that earns its keep. A signature proves we made the URL,
+not that whoever is holding it may still use it: somebody refunded an hour ago
+has a perfectly valid signature.
+
+Handouts are stamped at serve time with the reader's own name and email along
+the footer of every page, responses carry `no-store` and are always `inline`,
+never an attachment, and there is no download route anywhere in the application
+— a test asserts that no route name contains both "lesson" and "download".
+
+None of this is DRM, and it is not meant to be. Somebody determined will
+photograph the screen. The watermark is the answer to that, and the goal here is
+to stop the casual "save as, send to the group chat".
+
+The player renders PDFs with PDF.js onto a canvas rather than handing them to
+the browser's built-in viewer, which comes with download and print buttons we
+have no way to remove. `pdfjs-dist` is pinned to an **exact** version: later
+releases call `Map.prototype.getOrInsertComputed`, which no Android WebView in
+the field has yet, and the reader would load a document and then fail on the
+first page — on exactly the phones most of these students are holding.
+
+### Buying a course
+
+Checkout reuses the Phase 3 payment layer whole — same gateways, same callback,
+same webhook, same "the order moves only on a verified webhook" rule. What is
+not reused is the split: **a course order has no sub-orders**, so there is no
+seller, no commission and no escrow, and the whole amount is the platform's the
+moment it clears. That falls out of the schema rather than being special-cased
+in the payment code, which is why `PaymentProcessor` needs no branch for it: it
+loops over sub-orders, and a course order has none.
+
+One purchase, lifetime access, all sales final. The wording is printed on the
+checkout page in full, the box is not pre-ticked, and the **text they agreed to**
+is stored on the enrolment along with the time and the IP — an argument six
+months later is about what they were shown, not about what the page says by then.
+
+### Certificates
+
+Issued only when every lesson is finished **and** the final quiz is passed. A
+course whose quiz is marked not required needs only the lessons.
+
+The issuing company's name, short name, RC number, logo path and signature block
+are **copied onto the certificate at issue time**, not looked up when the PDF
+renders. A student downloading theirs again in two years gets the document they
+were given, not one bearing whatever the company has since renamed itself, and
+the public check page at `/verify/{code}` says what it said on the day. The logo
+is stored as a path rather than a URL so it survives a change of domain.
+
+Marking happens on the server from the stored options. The quiz page carries
+option text and ids and nothing else — no scores, no correctness, no "passed"
+flag — because anything the browser is trusted to work out is a certificate
+anybody can mint with the console open.
+
+### Seeing it with something in it
+
+```bash
+php artisan db:seed --class=DemoAcademySeeder
+```
+
+Three published courses with modules, lessons, a quiz and **real generated PDF
+handouts** written onto the private disk, so the reader, the watermark and the
+five-minute link can be exercised rather than taken on trust.
+
 ## Roles
 
 One `users` table. A user may hold any number of roles at once — they are
