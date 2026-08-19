@@ -198,7 +198,7 @@ class WalletService
     {
         return WalletTransaction::query()
             ->forUser($user)
-            ->with('subOrder')
+            ->with('subOrder.order')
             ->latest('id')
             ->limit($limit)
             ->get();
