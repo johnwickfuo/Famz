@@ -184,6 +184,14 @@ const year = new Date().getFullYear();
                             My orders
                         </Link>
                     </li>
+                    <li v-if="user">
+                        <Link
+                            :href="route('disputes.index')"
+                            class="stencil block py-2 text-wash/90 underline-offset-8 hover:text-chrome hover:underline"
+                        >
+                            Problems
+                        </Link>
+                    </li>
                     <li v-if="!user" class="py-2">
                         <Button :href="route('register')" size="sm">Join free</Button>
                     </li>

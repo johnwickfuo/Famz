@@ -165,6 +165,73 @@ seller's is what remains after subtraction, so the two always add back to the
 subtotal exactly. `tests/Unit/CommissionTest.php` proves that over 20,000
 random sales.
 
+## Payouts and disputes
+
+### Money out
+
+A bank account is never saved on somebody's say-so. The account name comes back
+from the bank through the gateway's resolution endpoint and is stored as the
+bank gave it; `is_verified` records that the check actually happened, and an
+unverified account is never paid.
+
+A withdrawal reserves against the balance from the moment it is **requested**,
+not when it is paid — otherwise a seller with ₦50,000 could file five ₦50,000
+requests while an administrator was at lunch. The ledger entry is written when
+the gateway accepts the transfer; if it later bounces, a reversal is placed
+beside it and the original stays.
+
+The double-spend guard is a real row lock (`FOR UPDATE`) over both the ledger
+sum and the outstanding requests, taken inside the transaction that decides
+whether a request is allowed. `tests/Driver/ConcurrentWithdrawalTest.php` proves
+it by spawning six OS processes that race for one balance; with the lock
+removed, four are accepted against a balance that covers two.
+
+Two modes, set by `payout_mode`:
+
+| Mode | How money leaves |
+|---|---|
+| `manual_request` | The seller asks, an administrator approves and sends. The default: while a platform is young, somebody should see every naira that leaves it. |
+| `scheduled_auto` | `payouts:run` sweeps every balance over `minimum_withdrawal_amount` on `payout_schedule_day`. A day past the end of a short month lands on its last day. |
+
+```bash
+php artisan payouts:run            # scheduled daily; does nothing on other days
+php artisan payouts:run --force    # ignore the mode and the schedule
+```
+
+### Disputes
+
+A buyer may dispute within `dispute_window_days` of delivery being marked — or
+at any time if it was never marked, because the complaint is that it has not
+come. Raising one **freezes the money**: the escrow clock is cleared and the
+settlement drivers refuse to release a disputed order. One live dispute per
+sub-order, enforced by a unique index rather than by hope.
+
+Buyer, seller and administrator share one thread. An administrator's notes to
+file are the only thing withheld, and they are withheld from both sides — an
+arbitrator taking one party into a private room is not arbitrating.
+
+Every resolution obeys one law, asserted over the ledger on all four paths and
+over 300 randomised partial refunds:
+
+> what the seller keeps **+** what the platform keeps **+** what goes back to
+> the buyer **=** what the buyer paid.
+
+A partial refund is counted against the goods first and the delivery fee only
+once the goods are exhausted, so the platform gives back its commission on
+exactly what is being returned — refund two bags out of ten and it gives up the
+commission on two bags. A refund that only concerns the delivery therefore
+comes out of the seller, who is the one who delivered it late.
+
+### Reading the books
+
+**Admin → Money** carries the payout queue, the disputes queue, a searchable
+ledger explorer, and a reconciliation page that puts what buyers were charged
+next to what the ledger says happened to it. The two are built from different
+tables by different code, so when they agree it means something.
+
+**Seller → Money** is the same ledger from one seller's side: what is ready to
+withdraw, what is still held, sales by month, and a filterable statement.
+
 ## Roles
 
 One `users` table. A user may hold any number of roles at once — they are

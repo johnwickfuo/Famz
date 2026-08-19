@@ -74,7 +74,7 @@ it('writes the platform rules through', function () {
             'consultation_urgent_response_hours' => 4,
             'buyer_request_expiry_days' => 21,
             'quote_validity_days' => 45,
-            'settlement_driver' => 'direct',
+            'settlement_driver' => 'instant',
             'active_payment_gateway' => 'flutterwave',
         ])
         ->call('save')
@@ -87,7 +87,7 @@ it('writes the platform rules through', function () {
         ->and($settings->integer('consultation_urgent_response_hours'))->toBe(4)
         ->and($settings->integer('buyer_request_expiry_days'))->toBe(21)
         ->and($settings->integer('quote_validity_days'))->toBe(45)
-        ->and($settings->string('settlement_driver'))->toBe('direct')
+        ->and($settings->string('settlement_driver'))->toBe('instant')
         ->and($settings->string('active_payment_gateway'))->toBe('flutterwave');
 });
 
@@ -118,4 +118,13 @@ it('rejects a commission outside 0 to 100', function () {
         ->fillForm(['marketplace_commission_percent' => 250])
         ->call('save')
         ->assertHasFormErrors(['marketplace_commission_percent']);
+});
+
+it('refuses a settlement driver the application does not have', function () {
+    livewire(ManageSettings::class)
+        ->fillForm(['settlement_driver' => 'direct'])
+        ->call('save')
+        ->assertHasFormErrors(['settlement_driver']);
+
+    expect(app(SettingsService::class)->string('settlement_driver'))->toBe('escrow');
 });

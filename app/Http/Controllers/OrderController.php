@@ -6,6 +6,7 @@ use App\Enums\DeliveryMethod;
 use App\Enums\SubOrderStatus;
 use App\Models\Order;
 use App\Models\SubOrder;
+use App\Services\Disputes\DisputeService;
 use App\Services\Orders\FulfilmentService;
 use App\Support\Money;
 use Illuminate\Http\RedirectResponse;
@@ -17,7 +18,10 @@ use RuntimeException;
 
 class OrderController extends Controller
 {
-    public function __construct(private readonly FulfilmentService $fulfilment) {}
+    public function __construct(
+        private readonly FulfilmentService $fulfilment,
+        private readonly DisputeService $disputes,
+    ) {}
 
     public function index(Request $request): Response
     {
@@ -66,42 +70,57 @@ class OrderController extends Controller
                 'address_lines' => $order->deliveryAddressLines(),
                 'note' => $order->delivery_note,
             ],
-            'subOrders' => $order->subOrders->map(fn (SubOrder $sub): array => [
-                'reference' => $sub->reference,
-                'status' => $sub->status->value,
-                'status_label' => $sub->status->label(),
-                'seller' => [
-                    'name' => $sub->seller->business_name,
-                    'slug' => $sub->seller->slug,
-                    'location' => $sub->seller->location(),
-                    // Only shown once the money is in and only for collection,
-                    // which is the whole point of holding it back.
-                    'address' => $this->pickupAddressFor($order, $sub),
-                    'phone' => $order->isPaid() ? $sub->seller->phone : null,
-                ],
-                'delivery_method' => $sub->delivery_method->value,
-                'delivery_method_label' => $sub->delivery_method->label(),
-                'delivery_fee' => Money::fromKobo($sub->delivery_fee_kobo),
-                'subtotal' => Money::fromKobo($sub->subtotal_kobo),
-                'rejection_reason' => $sub->rejection_reason,
-                'can_mark_received' => $this->canMarkReceived($sub),
-                'items' => $sub->items->map(fn ($item): array => [
-                    'name' => $item->label(),
-                    'quantity' => $item->quantity,
-                    'unit' => $item->unit_of_measure,
-                    'unit_price' => Money::fromKobo($item->unit_price_kobo),
-                    'line_total' => Money::fromKobo($item->line_total_kobo),
-                    'image' => $item->imageUrl(),
-                ])->all(),
-                'timeline' => array_values(array_filter([
-                    $sub->accepted_at ? ['label' => __('Accepted'), 'at' => $sub->accepted_at->format('j M, H:i')] : null,
-                    $sub->shipped_at ? ['label' => __('On its way'), 'at' => $sub->shipped_at->format('j M, H:i')] : null,
-                    $sub->delivered_at ? ['label' => __('Delivered'), 'at' => $sub->delivered_at->format('j M, H:i')] : null,
-                    $sub->received_at ? ['label' => __('Confirmed by you'), 'at' => $sub->received_at->format('j M, H:i')] : null,
-                    $sub->rejected_at ? ['label' => __('Rejected'), 'at' => $sub->rejected_at->format('j M, H:i')] : null,
-                ])),
-            ])->all(),
+            'subOrders' => $order->subOrders->map(fn (SubOrder $sub): array => $this->subOrderPayload($order, $sub, $request, $this->disputes))->all(),
         ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function subOrderPayload(Order $order, SubOrder $sub, Request $request, DisputeService $disputes): array
+    {
+        return [
+            'reference' => $sub->reference,
+            'status' => $sub->status->value,
+            'status_label' => $sub->status->label(),
+            'seller' => [
+                'name' => $sub->seller->business_name,
+                'slug' => $sub->seller->slug,
+                'location' => $sub->seller->location(),
+                // Only shown once the money is in and only for collection,
+                // which is the whole point of holding it back.
+                'address' => $this->pickupAddressFor($order, $sub),
+                'phone' => $order->isPaid() ? $sub->seller->phone : null,
+            ],
+            'delivery_method' => $sub->delivery_method->value,
+            'delivery_method_label' => $sub->delivery_method->label(),
+            'delivery_fee' => Money::fromKobo($sub->delivery_fee_kobo),
+            'subtotal' => Money::fromKobo($sub->subtotal_kobo),
+            'rejection_reason' => $sub->rejection_reason,
+            'can_mark_received' => $this->canMarkReceived($sub),
+            'can_dispute' => $disputes->canRaise($sub, $request->user()),
+            'dispute' => ($live = $disputes->liveDisputeFor($sub)) === null
+                ? ($settled = $sub->disputes()->latest()->first()) === null
+                    ? null
+                    : ['id' => $settled->id, 'status_label' => $settled->status->label(), 'is_live' => false]
+                : ['id' => $live->id, 'status_label' => $live->status->label(), 'is_live' => true],
+            'dispute_closes_at' => $disputes->windowClosesAt($sub)?->format('j M Y'),
+            'items' => $sub->items->map(fn ($item): array => [
+                'name' => $item->label(),
+                'quantity' => $item->quantity,
+                'unit' => $item->unit_of_measure,
+                'unit_price' => Money::fromKobo($item->unit_price_kobo),
+                'line_total' => Money::fromKobo($item->line_total_kobo),
+                'image' => $item->imageUrl(),
+            ])->all(),
+            'timeline' => array_values(array_filter([
+                $sub->accepted_at ? ['label' => __('Accepted'), 'at' => $sub->accepted_at->format('j M, H:i')] : null,
+                $sub->shipped_at ? ['label' => __('On its way'), 'at' => $sub->shipped_at->format('j M, H:i')] : null,
+                $sub->delivered_at ? ['label' => __('Delivered'), 'at' => $sub->delivered_at->format('j M, H:i')] : null,
+                $sub->received_at ? ['label' => __('Confirmed by you'), 'at' => $sub->received_at->format('j M, H:i')] : null,
+                $sub->rejected_at ? ['label' => __('Rejected'), 'at' => $sub->rejected_at->format('j M, H:i')] : null,
+            ])),
+        ];
     }
 
     /**

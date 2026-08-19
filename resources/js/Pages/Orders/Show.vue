@@ -149,11 +149,49 @@ const canPay = computed(() => props.order.status === 'pending_payment');
                         </li>
                     </ol>
 
-                    <template v-if="sub.can_mark_received" #footer>
+                    <!-- A live dispute is the loudest thing on this card:
+                         it is why nothing else is happening. -->
+                    <p
+                        v-if="sub.dispute?.is_live"
+                        class="mt-3 rounded-sm border-2 border-chrome-700 bg-chrome-100 p-3 text-sm dark:bg-grain-800"
+                    >
+                        <span class="font-semibold">{{ sub.dispute.status_label }}</span> — the seller's money is on
+                        hold while we look at this.
+                        <Link
+                            :href="route('disputes.show', sub.dispute.id)"
+                            class="underline underline-offset-4"
+                        >Open the conversation</Link>.
+                    </p>
+
+                    <template v-if="sub.can_mark_received || sub.can_dispute || sub.dispute" #footer>
                         <div class="flex flex-wrap items-center gap-3">
-                            <Button variant="enamel" @click="confirming = sub">I have received this</Button>
-                            <p class="text-xs text-muted">
+                            <Button v-if="sub.can_mark_received" variant="enamel" @click="confirming = sub">
+                                I have received this
+                            </Button>
+
+                            <Button
+                                v-if="sub.can_dispute"
+                                :href="route('disputes.create', sub.reference)"
+                                variant="secondary"
+                                size="sm"
+                            >
+                                Something is wrong
+                            </Button>
+
+                            <Button
+                                v-else-if="sub.dispute && !sub.dispute.is_live"
+                                :href="route('disputes.show', sub.dispute.id)"
+                                variant="ghost"
+                                size="sm"
+                            >
+                                {{ sub.dispute.status_label }}
+                            </Button>
+
+                            <p v-if="sub.can_mark_received" class="text-xs text-muted">
                                 This pays the seller. Only confirm once the goods are with you.
+                            </p>
+                            <p v-else-if="sub.can_dispute && sub.dispute_closes_at" class="text-xs text-muted">
+                                You can report a problem until {{ sub.dispute_closes_at }}.
                             </p>
                         </div>
                     </template>

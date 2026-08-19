@@ -3,10 +3,12 @@
 namespace App\Providers;
 
 use App\Models\Category;
+use App\Models\Dispute;
 use App\Models\Product;
 use App\Models\SellerProfile;
 use App\Models\SubOrder;
 use App\Policies\CategoryPolicy;
+use App\Policies\DisputePolicy;
 use App\Policies\ProductPolicy;
 use App\Policies\SellerProfilePolicy;
 use App\Policies\SubOrderPolicy;
@@ -32,5 +34,6 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(SellerProfile::class, SellerProfilePolicy::class);
         Gate::policy(Category::class, CategoryPolicy::class);
         Gate::policy(SubOrder::class, SubOrderPolicy::class);
+        Gate::policy(Dispute::class, DisputePolicy::class);
     }
 }

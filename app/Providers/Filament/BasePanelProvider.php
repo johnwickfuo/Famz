@@ -64,7 +64,7 @@ abstract class BasePanelProvider extends PanelProvider
                 in: app_path("Filament/{$this->directory()}/Widgets"),
                 for: "App\\Filament\\{$this->directory()}\\Widgets",
             )
-            ->pages([Dashboard::class])
+            ->pages([$this->dashboardPage()])
             ->middleware([
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,
@@ -80,6 +80,19 @@ abstract class BasePanelProvider extends PanelProvider
                 Authenticate::class,
                 EnsurePanelRole::class.':'.$id,
             ]);
+    }
+
+    /**
+     * The page a panel opens on.
+     *
+     * A panel whose landing page is a row of empty cards teaches nobody
+     * anything, so a panel with something worth showing replaces this.
+     *
+     * @return class-string
+     */
+    protected function dashboardPage(): string
+    {
+        return Dashboard::class;
     }
 
     /**

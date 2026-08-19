@@ -3,6 +3,7 @@
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CatalogueController;
 use App\Http\Controllers\CheckoutController;
+use App\Http\Controllers\DisputeController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProfileController;
@@ -54,6 +55,18 @@ Route::middleware('auth')->group(function () {
     Route::get('/orders/{order}', [OrderController::class, 'show'])->name('orders.show');
     Route::post('/orders/parts/{subOrder}/received', [OrderController::class, 'markReceived'])
         ->name('orders.received');
+
+    /*
+     * Disputes. Raised against one seller's part of an order, because that is
+     * the unit the money is held in.
+     */
+    Route::get('/disputes', [DisputeController::class, 'index'])->name('disputes.index');
+    Route::get('/orders/parts/{subOrder}/dispute', [DisputeController::class, 'create'])
+        ->name('disputes.create');
+    Route::post('/orders/parts/{subOrder}/dispute', [DisputeController::class, 'store'])
+        ->name('disputes.store');
+    Route::get('/disputes/{dispute}', [DisputeController::class, 'show'])->name('disputes.show');
+    Route::post('/disputes/{dispute}/reply', [DisputeController::class, 'reply'])->name('disputes.reply');
 });
 
 require __DIR__.'/auth.php';

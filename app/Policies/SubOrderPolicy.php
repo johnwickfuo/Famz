@@ -53,6 +53,17 @@ class SubOrderPolicy
         return $this->bought($user, $subOrder);
     }
 
+    /**
+     * Only the buyer complains, and only within the window.
+     *
+     * The window itself is DisputeService's business; this is the ownership
+     * half of the question.
+     */
+    public function raiseDispute(User $user, SubOrder $subOrder): bool
+    {
+        return $this->bought($user, $subOrder) && $subOrder->order?->isPaid() === true;
+    }
+
     public function update(User $user, SubOrder $subOrder): bool
     {
         return $user->holdsRole(RoleName::Admin);

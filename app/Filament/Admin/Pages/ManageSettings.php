@@ -2,15 +2,21 @@
 
 namespace App\Filament\Admin\Pages;
 
+use App\Enums\PayoutMode;
 use App\Services\Branding\BrandingKey;
+use App\Services\Payments\PaymentGatewayManager;
 use App\Services\Settings\SettingsService;
+use App\Services\Settlement\EscrowDriver;
+use App\Services\Settlement\SettlementManager;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\KeyValue;
+use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Schemas\Components\Actions;
@@ -55,6 +61,12 @@ class ManageSettings extends Page
         'quote_validity_days',
         'settlement_driver',
         'active_payment_gateway',
+        'escrow_auto_release_days',
+        'payout_mode',
+        'minimum_withdrawal_amount',
+        'payout_schedule_day',
+        'dispute_window_days',
+        'delivery_quotes_enabled',
     ];
 
     public static function getNavigationLabel(): string
@@ -104,6 +116,10 @@ class ManageSettings extends Page
                         Tab::make(__('Platform rules'))
                             ->icon('heroicon-o-scale')
                             ->schema($this->platformFields()),
+
+                        Tab::make(__('Money'))
+                            ->icon('heroicon-o-banknotes')
+                            ->schema($this->moneyFields()),
                     ])
                     ->persistTabInQueryString(),
             ])
@@ -236,20 +252,85 @@ class ManageSettings extends Page
                 ->suffix(__('days'))
                 ->required(),
 
-            Select::make('settlement_driver')
-                ->label(__('Settlement'))
-                ->options([
-                    'escrow' => __('Escrow — funds held until delivery'),
-                    'direct' => __('Direct — funds settle straight to the seller'),
-                ])
-                ->required(),
+            Toggle::make('delivery_quotes_enabled')
+                ->label(__('Let sellers quote for awkward deliveries'))
+                ->helperText(__('Off until the quote conversation is built. Half a negotiation is worse than none.'))
+                ->columnSpanFull(),
+        ];
+    }
 
+    /**
+     * Settlement, payouts and disputes: everything that decides when money
+     * moves and who has to press a button first.
+     *
+     * @return array<int, Component>
+     */
+    private function moneyFields(): array
+    {
+        return [
             Select::make('active_payment_gateway')
                 ->label(__('Payment gateway'))
-                ->options([
-                    'paystack' => 'Paystack',
-                    'flutterwave' => 'Flutterwave',
-                ])
+                ->options(PaymentGatewayManager::options())
+                ->helperText(__('Whichever you choose needs its keys in the server configuration.'))
+                ->required(),
+
+            Select::make('settlement_driver')
+                ->label(__('When sellers are paid'))
+                // From the manager, so this list can never offer a driver the
+                // application does not have.
+                ->options(SettlementManager::options())
+                ->live()
+                ->required(),
+
+            TextInput::make('escrow_auto_release_days')
+                ->label(__('Escrow window'))
+                ->numeric()
+                ->minValue(1)
+                ->maxValue(90)
+                ->suffix(__('days'))
+                ->helperText(__('After the seller marks a delivery, how long before the money releases on its own.'))
+                ->visible(fn ($get): bool => $get('settlement_driver') === EscrowDriver::KEY)
+                ->required(),
+
+            TextInput::make('dispute_window_days')
+                ->label(__('Time to report a problem'))
+                ->numeric()
+                ->minValue(1)
+                ->maxValue(90)
+                ->suffix(__('days'))
+                // Shorter than the escrow window and a buyer loses the right to
+                // complain before the money has even gone.
+                ->helperText(__('Counted from delivery. Keep it at least as long as the escrow window.'))
+                ->required(),
+
+            // A radio rather than a select: this decides whether money leaves
+            // the platform without anybody looking at it, so both options are
+            // on screen with their consequences beside them.
+            Radio::make('payout_mode')
+                ->label(__('How sellers get paid out'))
+                ->options(PayoutMode::options())
+                ->descriptions(collect(PayoutMode::cases())
+                    ->mapWithKeys(fn (PayoutMode $mode): array => [$mode->value => $mode->description()])
+                    ->all())
+                ->live()
+                ->required()
+                ->columnSpanFull(),
+
+            TextInput::make('minimum_withdrawal_amount')
+                ->label(__('Smallest payout'))
+                ->numeric()
+                ->minValue(0)
+                ->prefix('₦')
+                ->helperText(__('In kobo, as everything is. Below this the transfer fee eats the payout.'))
+                ->required(),
+
+            TextInput::make('payout_schedule_day')
+                ->label(__('Payout day'))
+                ->numeric()
+                ->minValue(1)
+                ->maxValue(31)
+                ->helperText(__('Day of the month. 29 to 31 lands on the last day of a short month.'))
+                ->visible(fn ($get): bool => $get('payout_mode') === PayoutMode::ScheduledAuto->value)
                 ->required(),
         ];
     }
