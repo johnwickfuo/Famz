@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Services\Branding\BrandingService;
+use App\Services\Cart\CartService;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -41,6 +42,11 @@ class HandleInertiaRequests extends Middleware
                     'roles' => $request->user()->getRoleNames()->all(),
                     'email_verified' => $request->user()->hasVerifiedEmail(),
                 ],
+            ],
+
+            // The header cart badge needs this on every page.
+            'cart' => [
+                'count' => fn (): int => app(CartService::class)->count(),
             ],
 
             'flash' => [

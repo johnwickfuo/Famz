@@ -30,12 +30,16 @@ const availablePanels = computed(() => panels.filter((panel) => roles.value.incl
 
 const nav = computed(() => [
     { label: 'Dashboard', href: route('dashboard'), icon: 'grid' },
+    { label: 'My orders', href: route('orders.index'), icon: 'box' },
+    { label: 'My cart', href: route('cart.index'), icon: 'cart' },
     { label: 'My profile', href: route('profile.edit'), icon: 'user' },
 ]);
 
 const icons = {
     grid: 'M3 3h7v7H3V3Zm11 0h7v7h-7V3ZM3 14h7v7H3v-7Zm11 0h7v7h-7v-7Z',
     user: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-8 9a8 8 0 0 1 16 0',
+    box: 'M3 7.5 12 3l9 4.5v9L12 21l-9-4.5v-9Zm0 0 9 4.5m0 0 9-4.5m-9 4.5V21',
+    cart: 'M2 4h2.6l2.3 11h10.3L19 8H7',
     panel: 'M4 4h16v16H4V4Zm0 5h16M9 9v11',
 };
 </script>

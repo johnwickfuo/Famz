@@ -10,6 +10,7 @@ use App\Services\Orders\FulfilmentService;
 use App\Support\Money;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
 use RuntimeException;
@@ -38,6 +39,8 @@ class OrderController extends Controller
             ])->all(),
             'pagination' => [
                 'links' => $orders->linkCollection()->toArray(),
+                'from' => $orders->firstItem(),
+                'to' => $orders->lastItem(),
                 'total' => $orders->total(),
             ],
         ]);
@@ -107,7 +110,9 @@ class OrderController extends Controller
      */
     public function markReceived(Request $request, SubOrder $subOrder): RedirectResponse
     {
-        abort_unless($subOrder->order->user_id === $request->user()->id, 403);
+        // The policy, not an inline comparison: only the buyer releases the
+        // hold, and that rule lives in one place.
+        Gate::authorize('markReceived', $subOrder);
 
         try {
             $this->fulfilment->markReceived($subOrder, $request->user());

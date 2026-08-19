@@ -22,7 +22,13 @@ class DatabaseCartStore implements CartStore
      */
     public function lines(): Collection
     {
-        return $this->cart()
+        $cart = $this->existingCart();
+
+        if ($cart === null) {
+            return collect();
+        }
+
+        return $cart
             ->items()
             ->get()
             ->map(fn (CartItem $item): CartLine => new CartLine(
@@ -50,7 +56,7 @@ class DatabaseCartStore implements CartStore
 
     public function remove(int $productId, ?int $variantId): void
     {
-        $this->cart()->items()
+        $this->existingCart()?->items()
             ->where('product_id', $productId)
             ->where('product_variant_id', $variantId)
             ->delete();
@@ -58,16 +64,28 @@ class DatabaseCartStore implements CartStore
 
     public function clear(): void
     {
-        $this->cart()->items()->delete();
+        $this->existingCart()?->items()->delete();
     }
 
     public function isEmpty(): bool
     {
-        return ! $this->cart()->items()->exists();
+        return ! (bool) $this->existingCart()?->items()->exists();
     }
 
+    /**
+     * The cart row, created if this is the buyer's first item.
+     *
+     * Only ever called from `put`. Reading a cart must not create one — the
+     * header asks for a count on every page, and that would leave an empty
+     * cart row behind for every signed-in visitor who never bought anything.
+     */
     private function cart(): Cart
     {
         return $this->cart ??= Cart::query()->firstOrCreate(['user_id' => $this->user->getKey()]);
+    }
+
+    private function existingCart(): ?Cart
+    {
+        return $this->cart ??= Cart::query()->where('user_id', $this->user->getKey())->first();
     }
 }

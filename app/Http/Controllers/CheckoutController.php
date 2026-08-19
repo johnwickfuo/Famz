@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\DeliveryMethod;
+use App\Enums\OrderStatus;
 use App\Models\Order;
 use App\Services\Cart\CartService;
 use App\Services\Orders\CheckoutPricing;
@@ -38,7 +39,11 @@ class CheckoutController extends Controller
         }
 
         $profile = $request->user()->profileOrNew();
-        $state = old('state', $profile->state ?? '');
+
+        // The delivery options and their fees depend on where the goods are
+        // going, so the page reloads just `groups` when the buyer picks a
+        // different state.
+        $state = (string) ($request->input('state') ?? old('state', $profile->state ?? ''));
 
         $pricing = CheckoutPricing::forLines($lines);
 
@@ -50,7 +55,7 @@ class CheckoutController extends Controller
                 'name' => $request->user()->displayName(),
                 'phone' => $profile->phone,
                 'address' => null,
-                'state' => $profile->state,
+                'state' => $state !== '' ? $state : $profile->state,
                 'lga' => $profile->lga,
             ],
             'states' => Nigeria::states(),
@@ -134,6 +139,44 @@ class CheckoutController extends Controller
 
         // The cart is emptied only once the buyer is on their way to pay.
         $this->cart->clear();
+
+        return redirect()->away($initialisation->authorisationUrl);
+    }
+
+    /**
+     * Try the payment again on an order that was never paid.
+     *
+     * A buyer whose bank timed out, or who closed the gateway page, has an
+     * order sitting there unpaid. Without this they would have to rebuild the
+     * whole cart — and the prices are already fixed on the order, so there is
+     * nothing to re-quote.
+     */
+    public function pay(Request $request, Order $order): RedirectResponse
+    {
+        abort_unless($order->user_id === $request->user()->id, 403);
+
+        if ($order->isPaid()) {
+            return redirect()->route('orders.show', $order);
+        }
+
+        if ($order->status !== OrderStatus::PendingPayment) {
+            return redirect()
+                ->route('orders.show', $order)
+                ->with('error', __('This order can no longer be paid for.'));
+        }
+
+        $gateway = $this->gateways->gateway($order->payment_gateway);
+
+        try {
+            $initialisation = $gateway->initialise(
+                $order,
+                route('checkout.callback', ['reference' => $order->reference]),
+            );
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return back()->with('error', __('We could not start the payment. Please try again shortly.'));
+        }
 
         return redirect()->away($initialisation->authorisationUrl);
     }

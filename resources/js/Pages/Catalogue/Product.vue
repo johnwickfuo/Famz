@@ -1,5 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue';
+import { router } from '@inertiajs/vue3';
 import PublicLayout from '@/Layouts/PublicLayout.vue';
 import Breadcrumb from '@/Components/Ui/Breadcrumb.vue';
 import Badge from '@/Components/Ui/Badge.vue';
@@ -9,6 +10,7 @@ import Table from '@/Components/Ui/Table.vue';
 import ProductGrid from '@/Components/Catalogue/ProductGrid.vue';
 import SellerCard from '@/Components/Catalogue/SellerCard.vue';
 import HandlingNotice from '@/Components/Catalogue/HandlingNotice.vue';
+import { naira } from '@/Support/money';
 
 const props = defineProps({
     product: { type: Object, required: true },
@@ -17,6 +19,7 @@ const props = defineProps({
 });
 
 const activeImage = ref(0);
+const adding = ref(false);
 const quantity = ref(props.product.min_order_quantity ?? 1);
 const selectedVariant = ref(props.product.variants[0]?.id ?? null);
 
@@ -42,12 +45,26 @@ const effectiveUnitKobo = computed(() => {
     return Math.max(0, base + (variant.value?.price_delta_kobo ?? 0));
 });
 
-const naira = (kobo) =>
-    '₦' + (kobo / 100).toLocaleString('en-NG', { maximumFractionDigits: kobo % 100 === 0 ? 0 : 2 });
-
 const total = computed(() => naira(effectiveUnitKobo.value * quantity.value));
 
 const maxQuantity = computed(() => variant.value?.stock_quantity ?? props.product.stock_quantity);
+
+function addToCart() {
+    adding.value = true;
+
+    router.post(
+        route('cart.store'),
+        {
+            product_id: props.product.id,
+            variant_id: selectedVariant.value,
+            quantity: quantity.value,
+        },
+        {
+            preserveScroll: true,
+            onFinish: () => (adding.value = false),
+        },
+    );
+}
 
 const tierColumns = [
     { key: 'quantity', label: 'Quantity' },
@@ -234,7 +251,13 @@ function step(by) {
                     </p>
 
                     <div class="mt-4 flex flex-wrap gap-2">
-                        <Button size="lg" :disabled="!product.in_stock" class="flex-1">
+                        <Button
+                            size="lg"
+                            class="flex-1"
+                            :disabled="!product.in_stock || adding"
+                            :loading="adding"
+                            @click="addToCart"
+                        >
                             {{ product.in_stock ? 'Add to cart' : 'Out of stock' }}
                         </Button>
 

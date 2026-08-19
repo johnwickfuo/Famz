@@ -13,6 +13,7 @@ const page = usePage();
 const branding = computed(() => page.props.branding ?? {});
 
 const user = computed(() => page.props.auth?.user ?? null);
+const cartCount = computed(() => page.props.cart?.count ?? 0);
 const search = ref('');
 const menuOpen = ref(false);
 
@@ -80,9 +81,28 @@ const year = new Date().getFullYear();
                         </button>
                     </form>
 
+                    <Link
+                        :href="route('cart.index')"
+                        class="relative ml-auto shrink-0 rounded-sm border-2 border-wash p-2 sm:ml-0"
+                    >
+                        <span class="sr-only">
+                            Cart<span v-if="cartCount">, {{ cartCount }} item{{ cartCount === 1 ? '' : 's' }}</span>
+                        </span>
+                        <svg class="size-5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <path d="M2 3h2.2l1.9 9.2h8.6L16.5 6H6" stroke-linecap="square" />
+                            <circle cx="7.5" cy="16.5" r="1.2" fill="currentColor" stroke="none" />
+                            <circle cx="14" cy="16.5" r="1.2" fill="currentColor" stroke="none" />
+                        </svg>
+                        <span
+                            v-if="cartCount"
+                            class="figures absolute -right-2 -top-2 min-w-5 rounded-full border-2 border-ink bg-chrome px-1 text-2xs font-bold leading-4 text-ink"
+                            aria-hidden="true"
+                        >{{ cartCount > 99 ? '99+' : cartCount }}</span>
+                    </Link>
+
                     <button
                         type="button"
-                        class="ml-auto shrink-0 rounded-sm border-2 border-wash p-2 sm:ml-0 lg:hidden"
+                        class="shrink-0 rounded-sm border-2 border-wash p-2 lg:hidden"
                         :aria-expanded="menuOpen"
                         aria-controls="primary-nav"
                         @click="menuOpen = !menuOpen"
@@ -154,6 +174,14 @@ const year = new Date().getFullYear();
                             class="stencil block py-2 text-wash/90 underline-offset-8 hover:text-chrome hover:underline"
                         >
                             My dashboard
+                        </Link>
+                    </li>
+                    <li v-if="user">
+                        <Link
+                            :href="route('orders.index')"
+                            class="stencil block py-2 text-wash/90 underline-offset-8 hover:text-chrome hover:underline"
+                        >
+                            My orders
                         </Link>
                     </li>
                     <li v-if="!user" class="py-2">
