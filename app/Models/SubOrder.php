@@ -92,6 +92,14 @@ class SubOrder extends Model
     }
 
     /**
+     * @return HasMany<Dispute, $this>
+     */
+    public function disputes(): HasMany
+    {
+        return $this->hasMany(Dispute::class);
+    }
+
+    /**
      * @return HasMany<WalletTransaction, $this>
      */
     public function ledgerEntries(): HasMany

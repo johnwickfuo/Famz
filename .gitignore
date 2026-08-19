@@ -28,3 +28,6 @@ _ide_helper.php
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# Redis writes a dump here when it is run in-place for local work.
+dump.rdb
