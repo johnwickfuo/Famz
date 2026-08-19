@@ -16,6 +16,10 @@ const props = defineProps({
 
 const component = computed(() => (props.href ? Link : 'button'));
 
+// `as` wins over the guess above, which is how a link that must leave the
+// Inertia app — a PDF the browser has to fetch itself — asks for a real <a>.
+const resolved = computed(() => props.as ?? component.value);
+
 const base = [
     'inline-flex items-center justify-center gap-2 rounded-sm border-2 font-display font-bold',
     'uppercase tracking-wider transition-[transform,box-shadow,background-color] duration-100',
@@ -50,11 +54,11 @@ const classes = computed(() => [
 
 <template>
     <component
-        :is="as ?? component"
+        :is="resolved"
         :class="classes"
         :type="href ? undefined : type"
         :href="href ?? undefined"
-        :method="href ? method : undefined"
+        :method="resolved === Link && href ? method : undefined"
         :disabled="href ? undefined : disabled || loading"
         :aria-busy="loading ? 'true' : undefined"
         :aria-disabled="href && (disabled || loading) ? 'true' : undefined"

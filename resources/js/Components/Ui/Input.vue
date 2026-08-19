@@ -3,6 +3,10 @@ import { computed } from 'vue';
 import { useId } from '@/Composables/useId';
 import FieldShell from './FieldShell.vue';
 
+// Attributes are forwarded to the <input> below by hand. Without this they
+// would also land on the wrapper, so a placeholder ended up on a <div> too.
+defineOptions({ inheritAttrs: false });
+
 const props = defineProps({
     modelValue: { type: [String, Number], default: '' },
     label: { type: String, default: null },
