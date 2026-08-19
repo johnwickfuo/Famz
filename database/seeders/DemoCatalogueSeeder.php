@@ -153,11 +153,52 @@ class DemoCatalogueSeeder extends Seeder
 
         $seller->categories()->sync($categories->pluck('id'));
 
+        $this->createDeliveryRates($seller);
+
         if ($seller->products()->exists()) {
             return;
         }
 
         $this->createProducts($seller, $categories);
+    }
+
+    /**
+     * Where this seller will deliver to, and for how much.
+     *
+     * Their own state is cheapest, the states next door cost more, and Lagos
+     * gets its own rate because everybody ships there and the traffic is
+     * priced in. Anywhere not listed simply cannot be delivered to, which is
+     * the honest answer for a trader with one van.
+     */
+    private function createDeliveryRates(SellerProfile $seller): void
+    {
+        if ($seller->deliveryRates()->exists()) {
+            return;
+        }
+
+        $neighbours = collect(self::SELLERS)
+            ->pluck('state')
+            ->reject(fn (string $state): bool => $state === $seller->state)
+            ->unique()
+            ->shuffle()
+            ->take(3);
+
+        $rates = collect([$seller->state => random_int(15, 30) * 100_00])
+            ->merge($neighbours->mapWithKeys(fn (string $state): array => [
+                $state => random_int(45, 90) * 100_00,
+            ]));
+
+        if (! $rates->has('Lagos')) {
+            $rates->put('Lagos', random_int(60, 110) * 100_00);
+        }
+
+        foreach ($rates as $state => $feeKobo) {
+            $seller->deliveryRates()->create([
+                'state' => $state,
+                'fee_kobo' => $feeKobo,
+                'is_active' => true,
+            ]);
+        }
     }
 
     /**

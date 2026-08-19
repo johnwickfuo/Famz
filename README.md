@@ -102,6 +102,69 @@ when none is reachable.
 php artisan db:seed --class=DemoCatalogueSeeder   # eight sellers, ~50 listings
 ```
 
+## Buying: cart, payment and the ledger
+
+A guest's cart lives in the session and a signed-in buyer's lives in the
+database; signing in merges the two by **adding** quantities rather than
+replacing them. Prices are resolved again at checkout, and a price that has
+moved is shown to the buyer before they pay, never for the first time on the
+receipt.
+
+One payment, one `orders` row. It splits into a `sub_orders` row per seller,
+each carrying its own commission snapshot and delivery choice, and each
+`order_items` row snapshots the product name, unit and price as they were at
+purchase — a historical order never reads the live product row.
+
+Delivery is per seller: `seller_arranged` at a rate the seller sets per state,
+or `buyer_pickup`, where the seller's address appears only once payment has
+cleared. `quote_required` is in the schema and behind the
+`delivery_quotes_enabled` flag until the negotiation flow exists.
+
+### The rule that matters
+
+**An order moves on the webhook and only on the webhook.** The gateway callback
+the buyer returns to is a public URL, so it grants nothing — it polls
+`/checkout/{order}/status` and reports what the server actually knows. Every
+webhook is signature-checked, made idempotent by a unique index on
+`(gateway, event_id)` plus a row lock on the order, and logged raw to
+`payment_webhooks` whether or not it was accepted.
+
+```
+POST /webhooks/payments/paystack
+POST /webhooks/payments/flutterwave
+```
+
+Paystack counts in kobo, Flutterwave in Naira. That conversion lives inside the
+gateway classes and nowhere else. Which gateway is live is the
+`active_payment_gateway` setting, not configuration; a gateway with no keys is
+never offered to a buyer.
+
+### Balances are never stored
+
+There is no balance column anywhere. `wallet_transactions` is the record and
+`WalletService` sums it on demand, so there is no second number that can
+disagree with the entries. A reversal is written **beside** the entry it
+corrects, leaving the original intact — rewriting a released entry would destroy
+the evidence that the money was ever released.
+
+Settlement is a driver, chosen by the `settlement_driver` setting:
+
+| Driver | Payout state on payment | Released when |
+|---|---|---|
+| `escrow` | `held` | the buyer confirms receipt, or `escrow_auto_release_days` (default 7) after the seller marks delivery, with no dispute |
+| `instant` | `released` | immediately on a verified payment |
+
+Commission is a separate ledger entry to the platform account under both.
+
+```bash
+php artisan escrow:release   # scheduled hourly; releases windows that have run out
+```
+
+Commission is split on integers: the platform's share is rounded once, and the
+seller's is what remains after subtraction, so the two always add back to the
+subtotal exactly. `tests/Unit/CommissionTest.php` proves that over 20,000
+random sales.
+
 ## Roles
 
 One `users` table. A user may hold any number of roles at once — they are
