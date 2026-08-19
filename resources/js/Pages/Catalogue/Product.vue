@@ -1,11 +1,14 @@
 <script setup>
 import { computed, ref } from 'vue';
-import { router } from '@inertiajs/vue3';
+import { router, useForm, usePage } from '@inertiajs/vue3';
 import PublicLayout from '@/Layouts/PublicLayout.vue';
 import Breadcrumb from '@/Components/Ui/Breadcrumb.vue';
 import Badge from '@/Components/Ui/Badge.vue';
 import Button from '@/Components/Ui/Button.vue';
 import Card from '@/Components/Ui/Card.vue';
+import Modal from '@/Components/Ui/Modal.vue';
+import Input from '@/Components/Ui/Input.vue';
+import Textarea from '@/Components/Ui/Textarea.vue';
 import Table from '@/Components/Ui/Table.vue';
 import ProductGrid from '@/Components/Catalogue/ProductGrid.vue';
 import SellerCard from '@/Components/Catalogue/SellerCard.vue';
@@ -20,6 +23,51 @@ const props = defineProps({
 
 const activeImage = ref(0);
 const adding = ref(false);
+const haggling = ref(false);
+const answering = ref(false);
+
+const page = usePage();
+const signedIn = computed(() => Boolean(page.props.auth?.user));
+
+const offerForm = useForm({
+    quantity: props.product.min_order_quantity ?? 1,
+    unit_price: '',
+    message: '',
+});
+
+const answerForm = useForm({
+    decision: 'accept',
+    quantity: props.product.my_offer?.quantity ?? 1,
+    unit_price: '',
+    message: '',
+});
+
+const offerTotal = computed(() => {
+    const price = Math.round(Number(offerForm.unit_price || 0) * 100);
+    return price > 0 ? naira(price * Number(offerForm.quantity || 0)) : null;
+});
+
+function sendOffer() {
+    offerForm.post(route('offers.store', props.product.slug), {
+        preserveScroll: true,
+        onSuccess: () => {
+            haggling.value = false;
+            offerForm.reset('unit_price', 'message');
+        },
+    });
+}
+
+function answerOffer(decision) {
+    answerForm.decision = decision;
+    answerForm.post(route('offers.respond', props.product.my_offer.id), {
+        preserveScroll: true,
+        onSuccess: () => (answering.value = false),
+    });
+}
+
+function withdrawOffer() {
+    router.post(route('offers.withdraw', props.product.my_offer.id), {}, { preserveScroll: true });
+}
 const quantity = ref(props.product.min_order_quantity ?? 1);
 const selectedVariant = ref(props.product.variants[0]?.id ?? null);
 
@@ -261,18 +309,62 @@ function step(by) {
                             {{ product.in_stock ? 'Add to cart' : 'Out of stock' }}
                         </Button>
 
-                        <!-- Negotiation opens in a later phase; the control is
-                             here so the seller's "negotiable" flag means
-                             something on the page today. -->
                         <Button
-                            v-if="product.is_negotiable"
+                            v-if="product.is_negotiable && !product.my_offer"
                             variant="secondary"
                             size="lg"
-                            disabled
-                            title="Offers open soon"
+                            @click="haggling = true"
                         >
-                            Negotiate
+                            Make an offer
                         </Button>
+                    </div>
+
+                    <!--
+                        A haggle in progress belongs where the price is, not in
+                        a menu somewhere: it is the reason this buyer came back.
+                    -->
+                    <div
+                        v-if="product.my_offer"
+                        class="mt-4 rounded-sm border-2 border-ink bg-chrome-100 p-3 dark:border-wash dark:bg-grain-800"
+                    >
+                        <p class="font-display text-xs font-bold uppercase tracking-wider">
+                            {{ product.my_offer.awaiting_me ? 'The seller has come back to you' : 'Your offer is with the seller' }}
+                        </p>
+                        <p class="figures mt-1 text-sm">
+                            {{ product.my_offer.quantity }} × {{ product.my_offer.unit_price }} —
+                            {{ product.my_offer.total }}
+                            <span v-if="product.my_offer.expires_at" class="text-muted">
+                                · until {{ product.my_offer.expires_at }}
+                            </span>
+                        </p>
+
+                        <div class="mt-3 flex flex-wrap gap-2">
+                            <Button
+                                v-if="product.my_offer.awaiting_me"
+                                size="sm"
+                                variant="enamel"
+                                :loading="answerForm.processing"
+                                @click="answerOffer('accept')"
+                            >
+                                Take it
+                            </Button>
+                            <Button
+                                v-if="product.my_offer.awaiting_me"
+                                size="sm"
+                                variant="secondary"
+                                @click="answering = true"
+                            >
+                                Come back with a price
+                            </Button>
+                            <button
+                                v-else
+                                type="button"
+                                class="stencil text-cockscomb underline underline-offset-4"
+                                @click="withdrawOffer"
+                            >
+                                Take my offer back
+                            </button>
+                        </div>
                     </div>
 
                     <p v-if="product.requires_delivery_quote" class="mt-3 text-xs text-muted">
@@ -324,5 +416,124 @@ function step(by) {
             <hr class="seam my-4" />
             <ProductGrid :products="related" />
         </section>
+
+        <Modal :show="haggling" title="Make an offer" @close="haggling = false">
+            <p v-if="!signedIn" class="text-sm">
+                Sign in first — an offer needs somebody the seller can answer.
+            </p>
+
+            <form v-else class="space-y-4" @submit.prevent="sendOffer">
+                <p class="text-sm text-muted">
+                    The seller can take it, turn it down, or come back with a price of their own. Nothing is
+                    charged unless you both agree.
+                </p>
+
+                <Input
+                    v-model="offerForm.quantity"
+                    label="How many"
+                    type="number"
+                    figures
+                    :min="product.min_order_quantity ?? 1"
+                    :max="maxQuantity"
+                    required
+                    :error="offerForm.errors.quantity"
+                />
+
+                <Input
+                    v-model="offerForm.unit_price"
+                    label="Your price each"
+                    type="number"
+                    step="0.01"
+                    prefix="₦"
+                    figures
+                    required
+                    :hint="`They are asking ${naira(product.price_kobo)}.`"
+                    :error="offerForm.errors.unit_price"
+                />
+
+                <Textarea
+                    v-model="offerForm.message"
+                    label="Anything to say"
+                    :rows="3"
+                    :maxlength="1000"
+                    hint="A line about why tends to work better than the number alone."
+                    :error="offerForm.errors.message"
+                />
+
+                <p v-if="offerTotal" class="figures text-sm">
+                    <span class="text-muted">You would pay</span>
+                    <span class="ml-2 font-bold">{{ offerTotal }}</span>
+                </p>
+            </form>
+
+            <template #footer>
+                <div class="flex flex-wrap justify-end gap-2">
+                    <Button variant="ghost" @click="haggling = false">Never mind</Button>
+                    <Button v-if="!signedIn" :href="route('login')">Sign in</Button>
+                    <Button
+                        v-else
+                        :loading="offerForm.processing"
+                        :disabled="offerForm.processing"
+                        @click="sendOffer"
+                    >
+                        Send the offer
+                    </Button>
+                </div>
+            </template>
+        </Modal>
+
+        <Modal :show="answering" title="Come back with a price" @close="answering = false">
+            <div class="space-y-4">
+                <p v-if="product.my_offer" class="text-sm text-muted">
+                    They are asking
+                    <span class="figures font-semibold">{{ product.my_offer.unit_price }}</span>
+                    each for
+                    <span class="figures font-semibold">{{ product.my_offer.quantity }}</span>.
+                </p>
+
+                <Input
+                    v-model="answerForm.quantity"
+                    label="How many"
+                    type="number"
+                    figures
+                    :min="1"
+                    required
+                    :error="answerForm.errors.quantity"
+                />
+
+                <Input
+                    v-model="answerForm.unit_price"
+                    label="Your price each"
+                    type="number"
+                    step="0.01"
+                    prefix="₦"
+                    figures
+                    required
+                    :error="answerForm.errors.unit_price"
+                />
+
+                <Textarea
+                    v-model="answerForm.message"
+                    label="Anything to say"
+                    :rows="2"
+                    :maxlength="1000"
+                    :error="answerForm.errors.message"
+                />
+            </div>
+
+            <template #footer>
+                <div class="flex flex-wrap justify-end gap-2">
+                    <Button variant="ghost" @click="answering = false">Never mind</Button>
+                    <Button
+                        :loading="answerForm.processing"
+                        :disabled="answerForm.processing"
+                        @click="answerOffer('counter')"
+                    >
+                        Send it
+                    </Button>
+                </div>
+            </template>
+        </Modal>
+
     </PublicLayout>
 </template>

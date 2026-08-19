@@ -104,7 +104,7 @@ class CartController extends Controller
                     'unit' => $line->product->unit_of_measure->shortLabel(),
                     'quantity' => $line->quantity,
                     'min_order_quantity' => $line->product->min_order_quantity,
-                    'stock_quantity' => $line->variant?->stock_quantity ?? $line->product->stock_quantity,
+                    'stock_quantity' => $line->variant?->availableStock() ?? $line->product->availableStock(),
                     'unit_price' => Money::fromKobo($line->unitPriceKobo),
                     'line_total' => Money::fromKobo($line->lineTotalKobo()),
                     'is_live_animal' => $line->product->is_live_animal,

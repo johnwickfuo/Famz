@@ -44,6 +44,13 @@ class HandleInertiaRequests extends Middleware
                 ],
             ],
 
+            // The header bell needs this on every page. A count, not a list:
+            // fetching the messages themselves on every request would be a
+            // query nobody reads on ninety-nine pages out of a hundred.
+            'notifications' => [
+                'unread' => fn (): int => $request->user()?->unreadNotifications()->count() ?? 0,
+            ],
+
             // The header cart badge needs this on every page.
             'cart' => [
                 'count' => fn (): int => app(CartService::class)->count(),

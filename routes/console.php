@@ -15,3 +15,7 @@ Schedule::command('escrow:release')->hourly()->withoutOverlapping();
 // Checks the mode and the configured payout day itself, so an administrator
 // changing either on a settings screen changes when sellers are paid.
 Schedule::command('payouts:run')->dailyAt('09:00')->withoutOverlapping();
+
+// Hourly rather than daily: an offer promised as good for 72 hours should not
+// still be acceptable most of a day after it lapsed.
+Schedule::command('offers:sweep')->hourly()->withoutOverlapping();

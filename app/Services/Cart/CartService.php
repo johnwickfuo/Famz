@@ -257,7 +257,9 @@ class CartService
      */
     private function clampToStock(Product $product, ?ProductVariant $variant, int $quantity): int
     {
-        $available = $variant?->stock_quantity ?? $product->stock_quantity;
+        // Available, not total: stock reserved against an accepted offer
+        // belongs to that buyer until their window closes.
+        $available = $variant?->availableStock() ?? $product->availableStock();
 
         $quantity = max($quantity, $product->min_order_quantity);
 

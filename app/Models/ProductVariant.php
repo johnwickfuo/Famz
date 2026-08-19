@@ -21,6 +21,7 @@ class ProductVariant extends Model
         return [
             'price_delta_kobo' => 'integer',
             'stock_quantity' => 'integer',
+            'reserved_quantity' => 'integer',
             'sort_order' => 'integer',
         ];
     }
@@ -38,8 +39,16 @@ class ProductVariant extends Model
         return max(0, $this->product->price_kobo + $this->price_delta_kobo);
     }
 
+    /**
+     * Stock nobody has already been promised.
+     */
+    public function availableStock(): int
+    {
+        return max(0, $this->stock_quantity - (int) $this->reserved_quantity);
+    }
+
     public function isInStock(): bool
     {
-        return $this->stock_quantity > 0;
+        return $this->availableStock() > 0;
     }
 }

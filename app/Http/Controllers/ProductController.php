@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Http\Resources\ProductCard;
+use App\Models\Offer;
 use App\Models\Product;
 use App\Models\ProductPriceTier;
 use App\Models\ProductVariant;
+use App\Models\User;
 use App\Support\Money;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -25,7 +27,7 @@ class ProductController extends Controller
         $this->countView($request, $product);
 
         return Inertia::render('Catalogue/Product', [
-            'product' => $this->productProps($product),
+            'product' => $this->productProps($product, $request->user()),
             'breadcrumbs' => $this->breadcrumbs($product),
             'related' => ProductCard::collection(
                 Product::query()
@@ -42,7 +44,7 @@ class ProductController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function productProps(Product $product): array
+    private function productProps(Product $product, ?User $viewer = null): array
     {
         return [
             'id' => $product->id,
@@ -60,10 +62,13 @@ class ProductController extends Controller
                 : null,
             'discount_percent' => $product->discountPercent(),
 
-            'stock_quantity' => $product->stock_quantity,
+            'stock_quantity' => $product->availableStock(),
             'in_stock' => $product->isInStock(),
             'min_order_quantity' => $product->min_order_quantity,
             'is_negotiable' => $product->is_negotiable,
+            // Whether this particular visitor can actually make one, worked
+            // out on the server so the form cannot be talked into appearing.
+            'my_offer' => $this->openOfferFor($product, $viewer),
             'requires_delivery_quote' => $product->requires_delivery_quote,
 
             'is_live_animal' => $product->is_live_animal,
@@ -82,7 +87,7 @@ class ProductController extends Controller
                     'price_kobo' => $variant->priceKobo(),
                     'price_delta_kobo' => $variant->price_delta_kobo,
                     'in_stock' => $variant->isInStock(),
-                    'stock_quantity' => $variant->stock_quantity,
+                    'stock_quantity' => $variant->availableStock(),
                 ])->all(),
 
             'price_tiers' => $product->priceTiers
@@ -140,5 +145,46 @@ class ProductController extends Controller
         if (cache()->add($key, true, now()->addHour())) {
             $product->incrementQuietly('views_count');
         }
+    }
+
+    /**
+     * This visitor's own offer on this listing, if one is waiting.
+     *
+     * Never anybody else's: what a stranger is prepared to pay is exactly what
+     * a negotiation must not leak.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function openOfferFor(Product $product, ?User $user): ?array
+    {
+        if ($user === null || ! $product->is_negotiable) {
+            return null;
+        }
+
+        $offer = Offer::query()
+            ->where('offerable_type', $product->getMorphClass())
+            ->where('offerable_id', $product->getKey())
+            ->where(fn ($query) => $query
+                ->where('initiator_id', $user->getKey())
+                ->orWhere('responder_id', $user->getKey()))
+            ->open()
+            ->latest('id')
+            ->first();
+
+        if ($offer === null) {
+            return null;
+        }
+
+        return [
+            'id' => $offer->id,
+            'quantity' => $offer->quantity,
+            'unit_price' => $offer->unitPrice(),
+            'total' => $offer->totalPrice(),
+            'expires_at' => $offer->expires_at?->format('j M, H:i'),
+            'round' => $offer->round(),
+            // Whose turn it is. A buyer answering a seller's counter needs the
+            // accept and counter controls; one waiting on an answer does not.
+            'awaiting_me' => $offer->responder_id === $user->getKey(),
+        ];
     }
 }

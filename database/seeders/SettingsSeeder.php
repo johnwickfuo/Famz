@@ -47,6 +47,14 @@ class SettingsSeeder extends Seeder
         // last day, so February still gets paid.
         'payout_schedule_day' => ['type' => 'int', 'value' => '28'],
 
+        // How long an offer stands before it lapses, and how long an accepted
+        // offer's private checkout link is good for.
+        'offer_expiry_hours' => ['type' => 'int', 'value' => '72'],
+        'negotiated_checkout_hours' => ['type' => 'int', 'value' => '48'],
+
+        // Days before a wanted ad closes that its author is warned.
+        'buyer_request_warning_days' => ['type' => 'int', 'value' => '3'],
+
         // How long after a delivery is marked a buyer may still dispute it.
         // Deliberately not shorter than the escrow window: a buyer must never
         // lose the right to complain before the money has gone.

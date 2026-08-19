@@ -1,9 +1,13 @@
 <?php
 
+use App\Http\Controllers\BuyerRequestController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CatalogueController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\DisputeController;
+use App\Http\Controllers\NegotiatedPurchaseController;
+use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\OfferController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProfileController;
@@ -18,6 +22,10 @@ Route::get('/s/{section}', [PublicPageController::class, 'section'])->name('sect
 // The catalogue.
 Route::get('/market', [CatalogueController::class, 'home'])->name('catalogue.home');
 Route::get('/search', [CatalogueController::class, 'search'])->name('search');
+
+// The wanted-ad board is public: somebody who has not signed up should be able
+// to see that there is business here before being asked to register.
+Route::get('/requests', [BuyerRequestController::class, 'index'])->name('requests.index');
 Route::get('/category/{category}', [CatalogueController::class, 'category'])->name('catalogue.category');
 // Storefronts live under /store: /seller is the Filament seller panel, and a
 // seller slug could otherwise collide with one of its routes.
@@ -60,6 +68,41 @@ Route::middleware('auth')->group(function () {
      * Disputes. Raised against one seller's part of an order, because that is
      * the unit the money is held in.
      */
+    /*
+     * Wanted ads. The board itself is public; posting, managing and offering
+     * need an account.
+     */
+    Route::get('/requests/new', [BuyerRequestController::class, 'create'])->name('requests.create');
+    Route::post('/requests', [BuyerRequestController::class, 'store'])->name('requests.store');
+    Route::get('/requests/mine', [BuyerRequestController::class, 'mine'])->name('requests.mine');
+    Route::get('/requests/{buyerRequest}/manage', [BuyerRequestController::class, 'manage'])
+        ->name('requests.manage');
+    Route::post('/requests/{buyerRequest}/close', [BuyerRequestController::class, 'close'])
+        ->name('requests.close');
+    Route::post('/requests/{buyerRequest}/offers', [BuyerRequestController::class, 'offer'])
+        ->name('requests.offer');
+
+    /*
+     * Haggling over a listing. The seller answers in their panel; a buyer
+     * answers a counter here.
+     */
+    Route::post('/listings/{product}/offers', [OfferController::class, 'store'])->name('offers.store');
+    Route::post('/offers/{offer}/respond', [OfferController::class, 'respond'])->name('offers.respond');
+    Route::post('/offers/{offer}/withdraw', [OfferController::class, 'withdraw'])->name('offers.withdraw');
+
+    // The private checkout an accepted offer earns.
+    Route::get('/agreed/{negotiatedPurchase}', [NegotiatedPurchaseController::class, 'show'])
+        ->name('negotiated.show');
+    Route::post('/agreed/{negotiatedPurchase}', [NegotiatedPurchaseController::class, 'store'])
+        ->name('negotiated.store');
+
+    // What has happened since somebody last looked.
+    Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::get('/notifications/{notification}', [NotificationController::class, 'read'])
+        ->name('notifications.read');
+    Route::post('/notifications/read-all', [NotificationController::class, 'readAll'])
+        ->name('notifications.readAll');
+
     Route::get('/disputes', [DisputeController::class, 'index'])->name('disputes.index');
     Route::get('/orders/parts/{subOrder}/dispute', [DisputeController::class, 'create'])
         ->name('disputes.create');
@@ -70,3 +113,9 @@ Route::middleware('auth')->group(function () {
 });
 
 require __DIR__.'/auth.php';
+
+/*
+ * Registered last on purpose: a slug route declared before /requests/new would
+ * swallow it and every other literal path under /requests.
+ */
+Route::get('/requests/{buyerRequest}', [BuyerRequestController::class, 'show'])->name('requests.show');

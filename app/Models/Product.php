@@ -44,6 +44,7 @@ class Product extends Model
             'price_kobo' => 'integer',
             'compare_at_price_kobo' => 'integer',
             'stock_quantity' => 'integer',
+            'reserved_quantity' => 'integer',
             'min_order_quantity' => 'integer',
             'views_count' => 'integer',
             'is_negotiable' => 'boolean',
@@ -318,9 +319,21 @@ class Product extends Model
         return max(0, $base + ($variant?->price_delta_kobo ?? 0));
     }
 
+    /**
+     * What anybody else can actually buy.
+     *
+     * Stock held back for a buyer whose negotiated price was accepted is not
+     * on sale — it is theirs until their window closes. Selling the same bag
+     * twice is the failure this exists to prevent.
+     */
+    public function availableStock(): int
+    {
+        return max(0, $this->stock_quantity - (int) $this->reserved_quantity);
+    }
+
     public function isInStock(): bool
     {
-        return $this->stock_quantity > 0;
+        return $this->availableStock() > 0;
     }
 
     /**

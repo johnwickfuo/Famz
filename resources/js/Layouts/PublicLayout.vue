@@ -14,11 +14,13 @@ const branding = computed(() => page.props.branding ?? {});
 
 const user = computed(() => page.props.auth?.user ?? null);
 const cartCount = computed(() => page.props.cart?.count ?? 0);
+const unread = computed(() => page.props.notifications?.unread ?? 0);
 const search = ref('');
 const menuOpen = ref(false);
 
 const nav = [
     { label: 'Marketplace', href: route('catalogue.home') },
+    { label: 'Wanted', href: route('requests.index') },
     { label: 'Training', href: route('sections.show', 'training') },
     { label: 'Mentors', href: route('sections.show', 'mentors') },
     { label: 'Farm jobs', href: route('sections.show', 'jobs') },
@@ -82,8 +84,28 @@ const year = new Date().getFullYear();
                     </form>
 
                     <Link
-                        :href="route('cart.index')"
+                        v-if="user"
+                        :href="route('notifications.index')"
                         class="relative ml-auto shrink-0 rounded-sm border-2 border-wash p-2 sm:ml-0"
+                    >
+                        <span class="sr-only">
+                            What has happened<span v-if="unread">, {{ unread }} unread</span>
+                        </span>
+                        <svg class="size-5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <path d="M5 8a5 5 0 0 1 10 0c0 4 1.5 5 1.5 5h-13S5 12 5 8Z" stroke-linejoin="round" />
+                            <path d="M8.5 16a1.8 1.8 0 0 0 3 0" stroke-linecap="round" />
+                        </svg>
+                        <span
+                            v-if="unread"
+                            class="figures absolute -right-2 -top-2 min-w-5 rounded-full border-2 border-ink bg-cockscomb px-1 text-2xs font-bold leading-4 text-wash"
+                            aria-hidden="true"
+                        >{{ unread > 99 ? '99+' : unread }}</span>
+                    </Link>
+
+                    <Link
+                        :href="route('cart.index')"
+                        class="relative shrink-0 rounded-sm border-2 border-wash p-2"
+                        :class="user ? '' : 'ml-auto sm:ml-0'"
                     >
                         <span class="sr-only">
                             Cart<span v-if="cartCount">, {{ cartCount }} item{{ cartCount === 1 ? '' : 's' }}</span>
@@ -182,6 +204,14 @@ const year = new Date().getFullYear();
                             class="stencil block py-2 text-wash/90 underline-offset-8 hover:text-chrome hover:underline"
                         >
                             My orders
+                        </Link>
+                    </li>
+                    <li v-if="user">
+                        <Link
+                            :href="route('requests.mine')"
+                            class="stencil block py-2 text-wash/90 underline-offset-8 hover:text-chrome hover:underline"
+                        >
+                            My requests
                         </Link>
                     </li>
                     <li v-if="user">
