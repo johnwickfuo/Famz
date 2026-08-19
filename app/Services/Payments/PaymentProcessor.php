@@ -2,12 +2,16 @@
 
 namespace App\Services\Payments;
 
+use App\Enums\LedgerState;
+use App\Enums\LedgerType;
 use App\Enums\OrderStatus;
 use App\Enums\SubOrderStatus;
+use App\Models\Enrolment;
 use App\Models\Order;
 use App\Models\ProductVariant;
 use App\Models\SubOrder;
 use App\Services\Settlement\SettlementManager;
+use App\Services\Wallet\WalletService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -25,6 +29,7 @@ class PaymentProcessor
     public function __construct(
         private readonly PaymentGatewayManager $gateways,
         private readonly SettlementManager $settlement,
+        private readonly WalletService $wallet,
     ) {}
 
     /**
@@ -109,8 +114,51 @@ class PaymentProcessor
                 $this->decrementStock($subOrder);
             }
 
+            // A course order has no sub-orders at all, so the loop above does
+            // nothing for it. Opening the course is what "paid" means there.
+            $this->openCourses($locked);
+
             return true;
         });
+    }
+
+    /**
+     * Open any course this order paid for.
+     *
+     * Course money is the platform's in full: no seller, no commission split,
+     * no escrow. The single ledger entry says so, and it is released rather
+     * than held because there is nobody to hold it from.
+     */
+    private function openCourses(Order $order): void
+    {
+        $enrolments = Enrolment::query()
+            ->where('order_id', $order->getKey())
+            ->with('course')
+            ->get();
+
+        foreach ($enrolments as $enrolment) {
+            if ($enrolment->isActive()) {
+                continue;
+            }
+
+            $enrolment->forceFill([
+                'enrolled_at' => now(),
+                'price_paid_kobo' => $enrolment->price_paid_kobo ?: $order->grand_total_kobo,
+            ])->save();
+
+            $this->wallet->record(
+                user: null,
+                type: LedgerType::CourseSale,
+                amountKobo: $enrolment->price_paid_kobo,
+                state: LedgerState::Released,
+                description: __('Course sale: :title', ['title' => $enrolment->course?->title ?? $enrolment->reference]),
+                meta: [
+                    'enrolment_id' => $enrolment->getKey(),
+                    'course_id' => $enrolment->course_id,
+                    'order_reference' => $order->reference,
+                ],
+            );
+        }
     }
 
     /**

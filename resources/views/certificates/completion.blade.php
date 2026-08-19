@@ -2,12 +2,17 @@
     A training certificate. Landscape, and built so it reads properly whether
     the company turns out to have a two-word name or a six-word one, and whether
     or not a logo has been uploaded.
+
+    Everything about the issuer comes from $issuer, never from a literal and
+    never from the live branding directly: on an issued certificate that array
+    is the snapshot taken the day it was awarded, so reprinting one years later
+    produces the document the student was actually given.
 --}}
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
     <meta charset="utf-8">
-    <title>{{ $branding['name'] }} — {{ __('Certificate') }}</title>
+    <title>{{ $issuer['name'] }} — {{ __('Certificate') }}</title>
     <style>
         @page { margin: 0; }
 
@@ -33,7 +38,7 @@
         .wordmark {
             font-size: 14pt;
             font-weight: bold;
-            letter-spacing: {{ strlen($branding['name']) <= 10 ? '3px' : '1px' }};
+            letter-spacing: {{ strlen($issuer['name']) <= 10 ? '3px' : '1px' }};
             text-transform: uppercase;
         }
 
@@ -62,10 +67,12 @@
             <tr>
                 <td>
                     <div class="brand-label">
-                        @if ($branding['logo_url'])
-                            <img src="{{ $branding['logo_url'] }}" alt="{{ $branding['name'] }}" height="30">
+                        {{-- Wordmark when there is no logo: a blank box would
+                             be worse than a name set in type. --}}
+                        @if ($issuer['logo_url'])
+                            <img src="{{ $issuer['logo_url'] }}" alt="{{ $issuer['name'] }}" height="30">
                         @else
-                            <span class="wordmark">{{ $branding['name'] }}</span>
+                            <span class="wordmark">{{ $issuer['name'] }}</span>
                         @endif
                     </div>
                 </td>
@@ -87,9 +94,12 @@
         <p class="course">{{ $courseTitle }}</p>
 
         <p style="font-size:10pt; max-width:150mm;">
-            {{ branded(__('Issued by {company} on :date.', ['date' => $issuedAt->format('j F Y')])) }}
-            @if ($branding['rc_number'])
-                {{ __('RC :number.', ['number' => $branding['rc_number']]) }}
+            {{ __('Issued by :company on :date.', ['company' => $issuer['name'], 'date' => $issuedAt->format('j F Y')]) }}
+            @if ($issuer['rc_number'])
+                {{ __('RC :number.', ['number' => $issuer['rc_number']]) }}
+            @endif
+            @if ($scorePercent !== null)
+                {{ __('Final assessment: :score%.', ['score' => $scorePercent]) }}
             @endif
         </p>
 
@@ -98,11 +108,21 @@
         <table width="100%" cellpadding="0" cellspacing="0">
             <tr>
                 <td style="vertical-align:bottom;">
-                    <div class="signature-line stencil">{{ __('For :company', ['company' => $branding['short_name']]) }}</div>
+                    <div class="signature-line">
+                        @if ($issuer['signatory_name'])
+                            <span style="font-size:10pt; font-weight:bold;">{{ $issuer['signatory_name'] }}</span><br>
+                        @endif
+                        <span class="stencil">
+                            @if ($issuer['signatory_title'])
+                                {{ $issuer['signatory_title'] }},
+                            @endif
+                            {{ __('for :company', ['company' => $issuer['short_name']]) }}
+                        </span>
+                    </div>
                 </td>
                 <td style="text-align:right; vertical-align:bottom;" class="stencil">
-                    {{ __('Verify this certificate with the reference above') }}<br>
-                    @if ($branding['email']){{ $branding['email'] }}@endif
+                    {{ __('Check this certificate at') }}<br>
+                    {{ $verifyUrl }}
                 </td>
             </tr>
         </table>

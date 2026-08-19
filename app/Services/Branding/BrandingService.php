@@ -91,6 +91,16 @@ class BrandingService
         return $this->payload()['address'];
     }
 
+    public function signatoryName(): ?string
+    {
+        return $this->payload()['signatory_name'];
+    }
+
+    public function signatoryTitle(): ?string
+    {
+        return $this->payload()['signatory_title'];
+    }
+
     public function rcNumber(): ?string
     {
         return $this->payload()['rc_number'];
@@ -204,6 +214,8 @@ class BrandingService
             'whatsapp' => $this->settings->string(BrandingKey::Whatsapp->value),
             'address' => $this->settings->string(BrandingKey::Address->value),
             'rc_number' => $this->settings->string(BrandingKey::RcNumber->value),
+            'signatory_name' => $this->settings->string(BrandingKey::SignatoryName->value),
+            'signatory_title' => $this->settings->string(BrandingKey::SignatoryTitle->value),
             'logo_url' => $logo,
             'logo_dark_url' => $logoDark ?? $logo,
             'favicon_url' => $this->assetUrl($this->settings->string(BrandingKey::Favicon->value)),

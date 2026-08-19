@@ -1,5 +1,11 @@
 <?php
 
+use App\Http\Controllers\Academy\AcademyController;
+use App\Http\Controllers\Academy\CertificateController;
+use App\Http\Controllers\Academy\CourseCheckoutController;
+use App\Http\Controllers\Academy\CoursePlayerController;
+use App\Http\Controllers\Academy\LessonFileController;
+use App\Http\Controllers\Academy\QuizController;
 use App\Http\Controllers\BuyerRequestController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CatalogueController;
@@ -26,6 +32,29 @@ Route::get('/search', [CatalogueController::class, 'search'])->name('search');
 // The wanted-ad board is public: somebody who has not signed up should be able
 // to see that there is business here before being asked to register.
 Route::get('/requests', [BuyerRequestController::class, 'index'])->name('requests.index');
+
+/*
+ * The academy. Landing, catalogue and course pages are public; a course page
+ * shows its curriculum and plays its preview lessons without an account,
+ * because a locked list of titles sells nothing.
+ */
+Route::get('/academy', [AcademyController::class, 'home'])->name('academy.home');
+Route::get('/academy/courses', [AcademyController::class, 'catalogue'])->name('academy.catalogue');
+
+// A certificate is checked by whoever is holding the printed copy, which is
+// usually an employer with no account here.
+Route::get('/verify/{code}', [CertificateController::class, 'verify'])->name('certificates.verify');
+
+/*
+ * Course material. Deliberately outside the auth group: a preview lesson has
+ * to play for somebody who has not signed up yet, and the controller does the
+ * real work — signed, minted for one person, and an active enrolment checked
+ * again on every fetch. A signature proves we made the URL, not that whoever
+ * is holding it may still use it.
+ */
+Route::get('/academy/content/{lesson}', LessonFileController::class)
+    ->middleware('signed')
+    ->name('academy.lesson.file');
 Route::get('/category/{category}', [CatalogueController::class, 'category'])->name('catalogue.category');
 // Storefronts live under /store: /seller is the Filament seller panel, and a
 // seller slug could otherwise collide with one of its routes.
@@ -97,6 +126,36 @@ Route::middleware('auth')->group(function () {
         ->name('negotiated.store');
 
     // What has happened since somebody last looked.
+    /*
+     * The academy behind a sign-in: buying, the player, the quiz and
+     * certificates.
+     */
+    Route::get('/academy/my-courses', [AcademyController::class, 'mine'])->name('academy.mine');
+
+    Route::get('/academy/{course}/buy', [CourseCheckoutController::class, 'show'])->name('academy.checkout');
+    Route::post('/academy/{course}/buy', [CourseCheckoutController::class, 'store'])->name('academy.checkout.store');
+
+    Route::get('/academy/{course}/learn', [CoursePlayerController::class, 'show'])->name('academy.player');
+    Route::get('/academy/{course}/learn/{lesson}', [CoursePlayerController::class, 'show'])
+        ->name('academy.player.lesson');
+    Route::post('/academy/{course}/lessons/{lesson}/position', [CoursePlayerController::class, 'position'])
+        ->name('academy.player.position');
+    Route::post('/academy/{course}/lessons/{lesson}/complete', [CoursePlayerController::class, 'complete'])
+        ->name('academy.player.complete');
+    Route::get('/academy/{course}/lessons/{lesson}/link', [CoursePlayerController::class, 'contentUrl'])
+        ->name('academy.player.content');
+
+    Route::get('/academy/{course}/quiz', [QuizController::class, 'show'])->name('academy.quiz');
+    Route::post('/academy/{course}/quiz', [QuizController::class, 'submit'])->name('academy.quiz.submit');
+    Route::get('/academy/{course}/quiz/review', [QuizController::class, 'review'])->name('academy.quiz.review');
+
+    Route::post('/academy/{course}/certificate', [CertificateController::class, 'issue'])
+        ->name('academy.certificate.issue');
+    Route::get('/certificates/{certificate}', [CertificateController::class, 'show'])
+        ->name('academy.certificate.show');
+    Route::get('/certificates/{certificate}/pdf', [CertificateController::class, 'pdf'])
+        ->name('academy.certificate.pdf');
+
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
     Route::get('/notifications/{notification}', [NotificationController::class, 'read'])
         ->name('notifications.read');
@@ -119,3 +178,9 @@ require __DIR__.'/auth.php';
  * swallow it and every other literal path under /requests.
  */
 Route::get('/requests/{buyerRequest}', [BuyerRequestController::class, 'show'])->name('requests.show');
+
+/*
+ * Registered last, like the requests slug route: declared earlier it would
+ * swallow /academy/courses and every other literal path under /academy.
+ */
+Route::get('/academy/{course}', [AcademyController::class, 'show'])->name('academy.course');
