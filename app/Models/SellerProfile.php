@@ -125,6 +125,24 @@ class SellerProfile extends Model
         return $this->hasMany(Product::class, 'seller_id');
     }
 
+    /**
+     * What this seller charges to deliver to each state.
+     *
+     * @return HasMany<SellerDeliveryRate, $this>
+     */
+    public function deliveryRates(): HasMany
+    {
+        return $this->hasMany(SellerDeliveryRate::class, 'seller_id');
+    }
+
+    /**
+     * @return HasMany<SubOrder, $this>
+     */
+    public function subOrders(): HasMany
+    {
+        return $this->hasMany(SubOrder::class, 'seller_id');
+    }
+
     public function scopeApproved(Builder $query): Builder
     {
         return $query->where('status', SellerStatus::Approved);

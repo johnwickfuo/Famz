@@ -34,6 +34,32 @@ return [
         'key' => env('BREVO_KEY'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Payment gateways
+    |--------------------------------------------------------------------------
+    |
+    | Which one a platform actually uses is the `active_payment_gateway`
+    | setting, not configuration — an administrator chooses it on a screen.
+    | These are the credentials each one needs when it is chosen.
+    |
+    */
+
+    'paystack' => [
+        'public_key' => env('PAYSTACK_PUBLIC_KEY'),
+        'secret_key' => env('PAYSTACK_SECRET_KEY'),
+        'base_url' => env('PAYSTACK_BASE_URL', 'https://api.paystack.co'),
+    ],
+
+    'flutterwave' => [
+        'public_key' => env('FLUTTERWAVE_PUBLIC_KEY'),
+        'secret_key' => env('FLUTTERWAVE_SECRET_KEY'),
+        // Flutterwave verifies webhooks with a shared secret in a header
+        // rather than by signing the body.
+        'webhook_hash' => env('FLUTTERWAVE_WEBHOOK_HASH'),
+        'base_url' => env('FLUTTERWAVE_BASE_URL', 'https://api.flutterwave.com/v3'),
+    ],
+
     'ses' => [
         'key' => env('AWS_ACCESS_KEY_ID'),
         'secret' => env('AWS_SECRET_ACCESS_KEY'),

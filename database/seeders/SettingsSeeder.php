@@ -22,6 +22,14 @@ class SettingsSeeder extends Seeder
         'quote_validity_days' => ['type' => 'int', 'value' => '30'],
         'settlement_driver' => ['type' => 'string', 'value' => 'escrow'],
         'active_payment_gateway' => ['type' => 'string', 'value' => 'paystack'],
+
+        // Days after the seller marks a delivery before escrow releases on its
+        // own, if the buyer has said nothing and raised no dispute.
+        'escrow_auto_release_days' => ['type' => 'int', 'value' => '7'],
+
+        // The quote-a-delivery-price conversation is not built yet; the schema
+        // carries it so no migration is needed when it is.
+        'delivery_quotes_enabled' => ['type' => 'bool', 'value' => '0'],
     ];
 
     public function run(): void
