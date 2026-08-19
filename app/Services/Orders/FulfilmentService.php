@@ -103,7 +103,7 @@ class FulfilmentService
         $subOrder->forceFill([
             'status' => SubOrderStatus::Delivered,
             'delivered_at' => now(),
-            'auto_release_at' => $holdsFunds ? EscrowDriver::autoReleaseAt() : null,
+            'auto_release_at' => $holdsFunds ? EscrowDriver::windowFrom() : null,
         ])->save();
 
         $subOrder->order->syncStatusFromSubOrders();
@@ -140,7 +140,7 @@ class FulfilmentService
      * The buyer says something is wrong. The clock stops until somebody
      * resolves it.
      */
-    public function dispute(SubOrder $subOrder, string $reason, ?User $actor = null): SubOrder
+    public function dispute(SubOrder $subOrder, string $reason = '', ?User $actor = null): SubOrder
     {
         if ($subOrder->isSettled()) {
             throw new RuntimeException(__('This order has already been settled.'));
@@ -152,7 +152,6 @@ class FulfilmentService
             // Cleared so the automatic release cannot fire while the dispute is
             // open. This is the whole point of the flag.
             'auto_release_at' => null,
-            'rejection_reason' => $reason,
         ])->save();
 
         $subOrder->order->syncStatusFromSubOrders();

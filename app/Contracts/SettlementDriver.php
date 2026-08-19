@@ -4,6 +4,7 @@ namespace App\Contracts;
 
 use App\Models\SubOrder;
 use App\Models\User;
+use Illuminate\Support\Carbon;
 
 /**
  * How and when a seller's money becomes theirs.
@@ -40,4 +41,12 @@ interface SettlementDriver
      * release step is meaningful.
      */
     public function holdsFunds(): bool;
+
+    /**
+     * When this sub-order's money releases on its own, if ever.
+     *
+     * Null under a driver that does not hold funds, and null before the seller
+     * has marked a delivery: the clock starts then, not at payment.
+     */
+    public function autoReleaseAt(SubOrder $subOrder): ?Carbon;
 }

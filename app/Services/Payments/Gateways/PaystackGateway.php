@@ -4,6 +4,8 @@ namespace App\Services\Payments\Gateways;
 
 use App\Contracts\PaymentGateway;
 use App\Models\Order;
+use App\Services\Payments\Data\Bank;
+use App\Services\Payments\Data\BankAccount;
 use App\Services\Payments\Data\PaymentInitialisation;
 use App\Services\Payments\Data\PaymentVerification;
 use App\Services\Payments\Data\TransferRequest;
@@ -11,6 +13,7 @@ use App\Services\Payments\Data\TransferResult;
 use App\Services\Payments\Data\WebhookEvent;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
 
@@ -137,6 +140,58 @@ class PaystackGateway implements PaymentGateway
             reference: $payload['data']['reference'] ?? null,
             signatureValid: $this->verifyWebhookSignature($request),
             payload: is_array($payload) ? $payload : [],
+        );
+    }
+
+    /**
+     * @return array<int, Bank>
+     */
+    public function banks(): array
+    {
+        // The list changes rarely and is asked for on every payout form, so it
+        // is cached for a day rather than fetched each time somebody opens it.
+        return Cache::remember('paystack.banks', now()->addDay(), function (): array {
+            $response = $this->client()->get('/bank', ['country' => 'nigeria', 'perPage' => 200]);
+            $body = $response->json();
+
+            if (! $response->successful() || ($body['status'] ?? false) !== true) {
+                return [];
+            }
+
+            return collect($body['data'] ?? [])
+                ->map(fn (array $bank): Bank => new Bank(
+                    code: (string) ($bank['code'] ?? ''),
+                    name: (string) ($bank['name'] ?? ''),
+                ))
+                ->filter(fn (Bank $bank): bool => $bank->code !== '' && $bank->name !== '')
+                ->sortBy(fn (Bank $bank): string => $bank->name)
+                ->values()
+                ->all();
+        });
+    }
+
+    public function resolveAccount(string $accountNumber, string $bankCode): BankAccount
+    {
+        $response = $this->client()->get('/bank/resolve', [
+            'account_number' => $accountNumber,
+            'bank_code' => $bankCode,
+        ]);
+
+        $body = $response->json();
+
+        if (! $response->successful() || ($body['status'] ?? false) !== true) {
+            return BankAccount::failed(
+                $body['message'] ?? __('That account number could not be checked with the bank.'),
+                is_array($body) ? $body : [],
+            );
+        }
+
+        return new BankAccount(
+            resolved: true,
+            accountName: $body['data']['account_name'] ?? null,
+            accountNumber: $body['data']['account_number'] ?? $accountNumber,
+            bankCode: $bankCode,
+            raw: is_array($body) ? $body : [],
         );
     }
 

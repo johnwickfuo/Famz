@@ -11,3 +11,7 @@ Artisan::command('inspire', function () {
 // Sellers must not wait on a buyer who never confirms. Hourly rather than
 // daily so the window a seller was promised is roughly the window they get.
 Schedule::command('escrow:release')->hourly()->withoutOverlapping();
+
+// Checks the mode and the configured payout day itself, so an administrator
+// changing either on a settings screen changes when sellers are paid.
+Schedule::command('payouts:run')->dailyAt('09:00')->withoutOverlapping();

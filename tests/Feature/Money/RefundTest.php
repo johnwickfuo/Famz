@@ -66,7 +66,8 @@ it('cancels a held payout when the seller rejects under escrow', function () {
     $this->settings->set('settlement_driver', EscrowDriver::KEY, 'string', 'platform');
     $this->settlement->driver()->recordSale($this->subOrder);
 
-    expect($this->wallet->heldBalance($this->sellerUser))->toBe(1_900_000);
+    // ₦19,000 of goods plus the ₦3,000 delivery, which is the seller's too.
+    expect($this->wallet->heldBalance($this->sellerUser))->toBe(2_200_000);
 
     $this->fulfilment->reject($this->subOrder, 'Out of stock.');
 
@@ -81,7 +82,7 @@ it('reverses an already-released payout when the seller rejects under instant se
     $this->settings->set('settlement_driver', InstantDriver::KEY, 'string', 'platform');
     $this->settlement->driver()->recordSale($this->subOrder);
 
-    expect($this->wallet->availableBalance($this->sellerUser))->toBe(1_900_000);
+    expect($this->wallet->availableBalance($this->sellerUser))->toBe(2_200_000);
 
     $this->fulfilment->reject($this->subOrder, 'Cannot fulfil.');
 
@@ -92,7 +93,8 @@ it('reverses an already-released payout when the seller rejects under instant se
     $reversals = WalletTransaction::query()->where('type', LedgerType::Reversal)->get();
 
     expect($reversals)->toHaveCount(2)
-        ->and($reversals->sum('amount_kobo'))->toBe(-2_000_000);
+        // Everything the buyer paid for this seller's part, delivery included.
+        ->and($reversals->sum('amount_kobo'))->toBe(-2_300_000);
 });
 
 it('writes a refund entry recording what the buyer is owed', function () {

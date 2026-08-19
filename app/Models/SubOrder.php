@@ -123,6 +123,20 @@ class SubOrder extends Model
     }
 
     /**
+     * Everything credited to the seller for this order.
+     *
+     * The delivery fee is theirs in full: it pays for their fuel and their
+     * afternoon, and commission is charged on goods, not on transport. Leaving
+     * it out — as this did until the payout layer was built — meant the buyer
+     * paid for delivery and nobody was ever credited with it, so the ledger
+     * could never be reconciled against what the gateway actually settled.
+     */
+    public function sellerCreditKobo(): int
+    {
+        return $this->seller_payout_amount_kobo + $this->delivery_fee_kobo;
+    }
+
+    /**
      * The split, recomputed from the snapshot. Used by the tests to assert the
      * stored figures are internally consistent rather than merely plausible.
      */

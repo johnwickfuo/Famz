@@ -50,13 +50,14 @@ class EscrowDriver implements SettlementDriver
             $this->wallet->record(
                 user: $seller->user_id,
                 type: LedgerType::Sale,
-                amountKobo: $subOrder->seller_payout_amount_kobo,
+                amountKobo: $subOrder->sellerCreditKobo(),
                 state: LedgerState::Held,
                 description: __('Sale :reference', ['reference' => $subOrder->reference]),
                 subOrder: $subOrder,
                 meta: [
                     'order_reference' => $subOrder->order->reference,
                     'subtotal_kobo' => $subOrder->subtotal_kobo,
+                    'delivery_fee_kobo' => $subOrder->delivery_fee_kobo,
                     'commission_percent' => (float) $subOrder->commission_percent_snapshot,
                 ],
             );
@@ -109,7 +110,18 @@ class EscrowDriver implements SettlementDriver
     /**
      * When this sub-order will release on its own.
      */
-    public static function autoReleaseAt(): Carbon
+    public function autoReleaseAt(SubOrder $subOrder): ?Carbon
+    {
+        // The clock starts at delivery, not at payment: a buyer waiting three
+        // weeks for day-old chicks must not have their window expire before
+        // the birds arrive.
+        return $subOrder->delivered_at === null ? null : self::windowFrom();
+    }
+
+    /**
+     * The end of the escrow window, counted from now.
+     */
+    public static function windowFrom(): Carbon
     {
         $days = (int) settings('escrow_auto_release_days', self::DEFAULT_AUTO_RELEASE_DAYS);
 

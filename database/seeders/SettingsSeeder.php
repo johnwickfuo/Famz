@@ -30,6 +30,27 @@ class SettingsSeeder extends Seeder
         // The quote-a-delivery-price conversation is not built yet; the schema
         // carries it so no migration is needed when it is.
         'delivery_quotes_enabled' => ['type' => 'bool', 'value' => '0'],
+
+        /*
+         * Payouts.
+         *
+         * `manual_request` by default: while a platform is young somebody
+         * should look at every naira that leaves it. `scheduled_auto` sweeps
+         * every balance over the minimum on `payout_schedule_day` instead.
+         */
+        'payout_mode' => ['type' => 'string', 'value' => 'manual_request'],
+
+        // ₦5,000. Below this the transfer fee eats the payout.
+        'minimum_withdrawal_amount' => ['type' => 'int', 'value' => '500000'],
+
+        // Day of the month the automatic sweep runs. 29–31 is clamped to the
+        // last day, so February still gets paid.
+        'payout_schedule_day' => ['type' => 'int', 'value' => '28'],
+
+        // How long after a delivery is marked a buyer may still dispute it.
+        // Deliberately not shorter than the escrow window: a buyer must never
+        // lose the right to complain before the money has gone.
+        'dispute_window_days' => ['type' => 'int', 'value' => '7'],
     ];
 
     public function run(): void

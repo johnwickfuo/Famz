@@ -190,6 +190,28 @@ class WalletService
     }
 
     /**
+     * The ledger rows for one sub-order, optionally for one account.
+     *
+     * `$userId` is a nullable int rather than a User because null is a real
+     * account here — the platform's — so "no argument" and "the platform"
+     * have to be told apart.
+     *
+     * @return Collection<int, WalletTransaction>
+     */
+    public function entriesFor(SubOrder $subOrder, ?int $userId, bool $platform = true): Collection
+    {
+        return WalletTransaction::query()
+            ->where('sub_order_id', $subOrder->getKey())
+            ->when(
+                $userId === null && $platform,
+                fn (Builder $query) => $query->whereNull('user_id'),
+                fn (Builder $query) => $query->where('user_id', $userId),
+            )
+            ->whereIn('type', [LedgerType::Sale, LedgerType::Commission, LedgerType::MentorshipEarning])
+            ->get();
+    }
+
+    /**
      * The entries for one account, newest first.
      *
      * @return Collection<int, WalletTransaction>

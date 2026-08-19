@@ -3,6 +3,8 @@
 namespace App\Contracts;
 
 use App\Models\Order;
+use App\Services\Payments\Data\Bank;
+use App\Services\Payments\Data\BankAccount;
 use App\Services\Payments\Data\PaymentInitialisation;
 use App\Services\Payments\Data\PaymentVerification;
 use App\Services\Payments\Data\TransferRequest;
@@ -62,6 +64,22 @@ interface PaymentGateway
      * Pull the few fields the application acts on out of a webhook body.
      */
     public function parseWebhook(Request $request): WebhookEvent;
+
+    /**
+     * The banks this provider can send money to.
+     *
+     * @return array<int, Bank>
+     */
+    public function banks(): array;
+
+    /**
+     * Ask the bank whose account this is.
+     *
+     * A seller never types their own account name: it comes back from here,
+     * which is how somebody who mistypes a digit finds out before the money
+     * goes to a stranger.
+     */
+    public function resolveAccount(string $accountNumber, string $bankCode): BankAccount;
 
     /**
      * Push money out to a seller's bank account.

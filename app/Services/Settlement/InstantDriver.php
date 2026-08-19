@@ -9,6 +9,7 @@ use App\Enums\SubOrderStatus;
 use App\Models\SubOrder;
 use App\Models\User;
 use App\Services\Wallet\WalletService;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -34,6 +35,14 @@ class InstantDriver implements SettlementDriver
         return false;
     }
 
+    /**
+     * Never: there is nothing to hold, so nothing to release later.
+     */
+    public function autoReleaseAt(SubOrder $subOrder): ?Carbon
+    {
+        return null;
+    }
+
     public function recordSale(SubOrder $subOrder): void
     {
         DB::transaction(function () use ($subOrder): void {
@@ -42,13 +51,14 @@ class InstantDriver implements SettlementDriver
             $this->wallet->record(
                 user: $seller->user_id,
                 type: LedgerType::Sale,
-                amountKobo: $subOrder->seller_payout_amount_kobo,
+                amountKobo: $subOrder->sellerCreditKobo(),
                 state: LedgerState::Released,
                 description: __('Sale :reference', ['reference' => $subOrder->reference]),
                 subOrder: $subOrder,
                 meta: [
                     'order_reference' => $subOrder->order->reference,
                     'subtotal_kobo' => $subOrder->subtotal_kobo,
+                    'delivery_fee_kobo' => $subOrder->delivery_fee_kobo,
                     'commission_percent' => (float) $subOrder->commission_percent_snapshot,
                 ],
             );
