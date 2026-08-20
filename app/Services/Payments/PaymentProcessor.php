@@ -11,9 +11,11 @@ use App\Models\Enrolment;
 use App\Models\MentorshipInvoice;
 use App\Models\Order;
 use App\Models\ProductVariant;
+use App\Models\QuotationStudyFee;
 use App\Models\SubOrder;
 use App\Services\Consultations\ConsultationService;
 use App\Services\Mentorship\EngagementService;
+use App\Services\Quotations\StudyFeeService;
 use App\Services\Settlement\SettlementManager;
 use App\Services\Wallet\WalletService;
 use Illuminate\Support\Facades\DB;
@@ -36,6 +38,7 @@ class PaymentProcessor
         private readonly WalletService $wallet,
         private readonly EngagementService $engagements,
         private readonly ConsultationService $consultations,
+        private readonly StudyFeeService $studyFees,
     ) {}
 
     /**
@@ -132,6 +135,10 @@ class PaymentProcessor
             // with the work it already quoted for.
             $this->openConsultations($locked);
 
+            // Nor a farm-setup study fee, where "paid" is the gate: it is what
+            // puts the request into somebody's work queue.
+            $this->openStudyFees($locked);
+
             return true;
         });
     }
@@ -224,6 +231,46 @@ class PaymentProcessor
                     'consultation_reference' => $consultation->reference,
                     'order_reference' => $order->reference,
                     'tier' => $consultation->tier->value,
+                ],
+            );
+        }
+    }
+
+    /**
+     * Open any farm-setup study this order paid for.
+     *
+     * The same shape as a course or a consultation: the company does the work
+     * itself, so the whole amount is the platform's and it is released rather
+     * than held. Its own ledger type, because the business will want to know
+     * what proportion of paid studies turned into projects, and that question
+     * cannot be asked of a number folded in with consultation fees.
+     */
+    private function openStudyFees(Order $order): void
+    {
+        $fees = QuotationStudyFee::query()
+            ->where('order_id', $order->getKey())
+            ->with('request')
+            ->get();
+
+        foreach ($fees as $fee) {
+            // Idempotent inside: a redelivered webhook settles this once.
+            if (! $this->studyFees->markPaid($fee, $order->reference)) {
+                continue;
+            }
+
+            $this->wallet->record(
+                user: null,
+                type: LedgerType::QuotationStudyFee,
+                amountKobo: $fee->amount_kobo,
+                state: LedgerState::Released,
+                description: __('Farm setup study: :reference', [
+                    'reference' => $fee->request?->reference ?? $order->reference,
+                ]),
+                meta: [
+                    'quotation_request_id' => $fee->quotation_request_id,
+                    'quotation_request_reference' => $fee->request?->reference,
+                    'study_fee_id' => $fee->getKey(),
+                    'order_reference' => $order->reference,
                 ],
             );
         }

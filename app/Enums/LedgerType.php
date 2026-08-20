@@ -46,6 +46,18 @@ enum LedgerType: string
     case ConsultationFee = 'consultation_fee';
 
     /**
+     * The fee charged before a farm proposal is written.
+     *
+     * Kept apart from ConsultationFee because it answers a different question.
+     * A consultation fee is paid for advice that was given; a study fee is paid
+     * for a proposal that may or may not turn into a project, and the business
+     * will want to know what proportion of them did. It is also the only
+     * revenue line that can later be discounted against work billed elsewhere,
+     * which is exactly why it needs to be countable on its own.
+     */
+    case QuotationStudyFee = 'quotation_study_fee';
+
+    /**
      * @return array<int, string>
      */
     public static function values(): array
@@ -65,6 +77,7 @@ enum LedgerType: string
             self::Reversal => __('Reversal'),
             self::CourseSale => __('Course sale'),
             self::ConsultationFee => __('Consultation'),
+            self::QuotationStudyFee => __('Study fee'),
         };
     }
 
