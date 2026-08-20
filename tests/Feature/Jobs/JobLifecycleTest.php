@@ -2,7 +2,6 @@
 
 use App\Enums\JobApplicationStatus;
 use App\Enums\JobListingStatus;
-use App\Enums\JobType;
 use App\Enums\RatingParty;
 use App\Enums\RatingStatus;
 use App\Enums\RoleName;
@@ -11,6 +10,7 @@ use App\Models\JobListing;
 use App\Models\JobRating;
 use App\Models\User;
 use App\Models\WorkerProfile;
+use App\Policies\JobRatingPolicy;
 use App\Services\Jobs\ApplicationService;
 use App\Services\Jobs\RatingService;
 use Database\Seeders\RoleSeeder;
@@ -192,7 +192,7 @@ it('derives the side from the policy rather than from the request', function () 
 
     // Somebody who is an employer here and a worker elsewhere must not be able
     // to choose which hat they were wearing.
-    $policy = app(App\Policies\JobRatingPolicy::class);
+    $policy = app(JobRatingPolicy::class);
 
     expect($policy->partyFor($this->employerUser, $hired))->toBe(RatingParty::Employer)
         ->and($policy->partyFor($this->workerUser, $hired))->toBe(RatingParty::Worker);
