@@ -110,6 +110,16 @@ class SettingsSeeder extends Seeder
          */
         'quotation_study_fee' => ['type' => 'int', 'value' => '5000000'],
 
+        /*
+         * The jobs board.
+         *
+         * How many workers' phone numbers one employer account is given in a
+         * day. Generous for somebody filling a job — they might genuinely look
+         * at twenty candidates in an afternoon — and useless for building a
+         * call list of every worker in a state.
+         */
+        'worker_contact_daily_limit' => ['type' => 'int', 'value' => '25'],
+
         // How long after a delivery is marked a buyer may still dispute it.
         // Deliberately not shorter than the escrow window: a buyer must never
         // lose the right to complain before the money has gone.

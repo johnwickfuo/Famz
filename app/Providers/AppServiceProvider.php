@@ -5,17 +5,23 @@ namespace App\Providers;
 use App\Models\BuyerRequest;
 use App\Models\Category;
 use App\Models\Dispute;
+use App\Models\JobListing;
+use App\Models\JobRating;
 use App\Models\Offer;
 use App\Models\Product;
 use App\Models\SellerProfile;
 use App\Models\SubOrder;
+use App\Models\WorkerProfile;
 use App\Policies\BuyerRequestPolicy;
 use App\Policies\CategoryPolicy;
 use App\Policies\DisputePolicy;
+use App\Policies\JobListingPolicy;
+use App\Policies\JobRatingPolicy;
 use App\Policies\OfferPolicy;
 use App\Policies\ProductPolicy;
 use App\Policies\SellerProfilePolicy;
 use App\Policies\SubOrderPolicy;
+use App\Policies\WorkerProfilePolicy;
 use App\Services\Ai\GeminiTagResolver;
 use App\Services\Ai\NullTagResolver;
 use App\Services\Ai\TagResolver;
@@ -57,5 +63,15 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Dispute::class, DisputePolicy::class);
         Gate::policy(Offer::class, OfferPolicy::class);
         Gate::policy(BuyerRequest::class, BuyerRequestPolicy::class);
+
+        /*
+         * The jobs board. JobRatingPolicy is the one that matters: the
+         * requirement that a rating follows an actual hire lives there and
+         * nowhere else, so it cannot be bypassed by reaching the endpoint from
+         * a different direction.
+         */
+        Gate::policy(JobListing::class, JobListingPolicy::class);
+        Gate::policy(JobRating::class, JobRatingPolicy::class);
+        Gate::policy(WorkerProfile::class, WorkerProfilePolicy::class);
     }
 }
