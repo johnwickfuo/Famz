@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Content\PlatformCopy;
+use App\Services\Branding\BrandingService;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -24,9 +26,31 @@ class PublicPageController extends Controller
         ],
     ];
 
+    public function __construct(
+        private readonly PlatformCopy $copy,
+        private readonly BrandingService $branding,
+    ) {}
+
     public function home(): Response
     {
-        return Inertia::render('Welcome');
+        /*
+         * All eight services, from the same list the How-it-works page reads.
+         *
+         * The home page used to name four of them in hard-coded component
+         * markup, which meant the marketplace, training, mentors and jobs were
+         * discoverable and consultations, farm setup, the assistant and the
+         * wanted board were not — on the one page most first-time visitors see.
+         */
+        return Inertia::render('Welcome', [
+            'services' => collect($this->copy->services())
+                ->map(fn (array $service): array => [
+                    ...$service,
+                    'name' => $this->branding->replacePlaceholders($service['name']),
+                    'blurb' => $this->branding->replacePlaceholders($service['blurb']),
+                    'href' => route($service['route']),
+                ])
+                ->all(),
+        ]);
     }
 
     public function section(string $section): Response

@@ -26,7 +26,9 @@ use App\Http\Controllers\Mentorship\MentorDirectoryController;
 use App\Http\Controllers\Mentorship\MentorRegistrationController;
 use App\Http\Controllers\NegotiatedPurchaseController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\ContactController;
 use App\Http\Controllers\NotificationPreferenceController;
+use App\Http\Controllers\PageController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\OfferController;
 use App\Http\Controllers\OrderController;
@@ -53,6 +55,25 @@ Route::get('/jobs', [JobBoardController::class, 'index'])->name('jobs.index');
 
 // The catalogue.
 Route::get('/market', [CatalogueController::class, 'home'])->name('catalogue.home');
+/*
+ * The pages that explain what this place is.
+ *
+ * Copy lives in App\Content with every company mention as a {company}
+ * placeholder, expanded server-side. A rename in settings renames the platform
+ * in its own terms of service on the next request.
+ */
+Route::get('/about', [PageController::class, 'about'])->name('pages.about');
+Route::get('/how-it-works', [PageController::class, 'howItWorks'])->name('pages.how-it-works');
+Route::get('/faq', [PageController::class, 'faq'])->name('pages.faq');
+Route::get('/terms', [PageController::class, 'terms'])->name('pages.terms');
+Route::get('/privacy', [PageController::class, 'privacy'])->name('pages.privacy');
+Route::get('/guides/{role}', [PageController::class, 'guide'])
+    ->whereIn('role', ['seller', 'mentor', 'worker'])
+    ->name('pages.guide');
+
+Route::get('/contact', [ContactController::class, 'create'])->name('contact.create');
+Route::post('/contact', [ContactController::class, 'store'])->name('contact.store');
+
 /*
  * One search box, five kinds of answer.
  *

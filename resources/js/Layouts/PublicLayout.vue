@@ -284,6 +284,43 @@ const year = new Date().getFullYear();
 
                 <hr class="seam seam-chrome my-6" />
 
+                <!--
+                    Grouped rather than one long row. Somebody hunting for the
+                    terms and somebody hunting for the seller guide are looking
+                    for different things, and a flat list of eleven links makes
+                    both of them read all eleven.
+                -->
+                <nav class="grid gap-6 sm:grid-cols-3" aria-label="More about this platform">
+                    <div>
+                        <p class="stencil mb-2 text-wash/50">About</p>
+                        <ul class="space-y-1.5 text-sm text-wash/70">
+                            <li><Link :href="route('pages.about')" class="underline-offset-4 hover:underline">About us</Link></li>
+                            <li><Link :href="route('pages.how-it-works')" class="underline-offset-4 hover:underline">How it works</Link></li>
+                            <li><Link :href="route('pages.faq')" class="underline-offset-4 hover:underline">Common questions</Link></li>
+                            <li><Link :href="route('contact.create')" class="underline-offset-4 hover:underline">Contact us</Link></li>
+                        </ul>
+                    </div>
+
+                    <div>
+                        <p class="stencil mb-2 text-wash/50">Guides</p>
+                        <ul class="space-y-1.5 text-sm text-wash/70">
+                            <li><Link :href="route('pages.guide', 'seller')" class="underline-offset-4 hover:underline">Selling here</Link></li>
+                            <li><Link :href="route('pages.guide', 'mentor')" class="underline-offset-4 hover:underline">Mentoring here</Link></li>
+                            <li><Link :href="route('pages.guide', 'worker')" class="underline-offset-4 hover:underline">Finding farm work</Link></li>
+                        </ul>
+                    </div>
+
+                    <div>
+                        <p class="stencil mb-2 text-wash/50">Legal</p>
+                        <ul class="space-y-1.5 text-sm text-wash/70">
+                            <li><Link :href="route('pages.terms')" class="underline-offset-4 hover:underline">Terms of service</Link></li>
+                            <li><Link :href="route('pages.privacy')" class="underline-offset-4 hover:underline">Privacy policy</Link></li>
+                        </ul>
+                    </div>
+                </nav>
+
+                <hr class="seam seam-chrome my-6" />
+
                 <div class="flex flex-col gap-3 text-xs text-wash/60 sm:flex-row sm:items-center sm:justify-between">
                     <p>
                         <span class="figures">&copy; {{ year }}</span>

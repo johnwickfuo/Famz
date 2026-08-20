@@ -4,34 +4,22 @@ import { usePage } from '@inertiajs/vue3';
 import PublicLayout from '@/Layouts/PublicLayout.vue';
 import Button from '@/Components/Ui/Button.vue';
 import Card from '@/Components/Ui/Card.vue';
-import Badge from '@/Components/Ui/Badge.vue';
 
 const page = usePage();
 const branding = computed(() => page.props.branding ?? {});
 const user = computed(() => page.props.auth?.user ?? null);
 
-const pillars = [
-    {
-        title: 'Buy and sell',
-        body: 'Feed, day-old chicks, cages, drinkers and equipment — from sellers who show their prices.',
-        stencil: 'Market',
-    },
-    {
-        title: 'Learn the work',
-        body: 'Short, practical training you can finish on a small screen, with a certificate at the end.',
-        stencil: 'Training',
-    },
-    {
-        title: 'Ask a mentor',
-        body: 'Put a question to an experienced farmer and get a written answer, not a guess.',
-        stencil: 'Mentors',
-    },
-    {
-        title: 'Find farm work',
-        body: 'Workers and employers meet here — by state and LGA, not by luck.',
-        stencil: 'Jobs',
-    },
-];
+/**
+ * All eight services, from the server.
+ *
+ * They used to be four hard-coded cards here, which meant half the platform was
+ * undiscoverable on the page most first-time visitors land on. The list now
+ * comes from the same PlatformCopy the How-it-works page reads, so adding a
+ * service adds it here too.
+ */
+defineProps({
+    services: { type: Array, default: () => [] },
+});
 </script>
 
 <template>
@@ -61,21 +49,30 @@ const pillars = [
             </div>
         </section>
 
-        <section aria-labelledby="pillars-heading">
-            <h2 id="pillars-heading" class="sr-only">What this platform does</h2>
+        <section aria-labelledby="services-heading">
+            <h2 id="services-heading" class="sr-only">What this platform does</h2>
 
             <div class="grid gap-4 sm:grid-cols-2">
-                <Card v-for="pillar in pillars" :key="pillar.title">
+                <Card v-for="service in services" :key="service.key">
                     <template #header>
-                        <div class="flex items-center justify-between gap-3">
-                            <h3 class="text-lg">{{ pillar.title }}</h3>
-                            <Badge variant="pending" size="sm">{{ pillar.stencil }}</Badge>
-                        </div>
+                        <h3 class="text-lg">{{ service.name }}</h3>
                     </template>
 
-                    <p class="text-sm text-muted">{{ pillar.body }}</p>
+                    <p class="text-sm text-muted">{{ service.blurb }}</p>
+
+                    <!-- Every card is a way in, not a description of one. -->
+                    <Button :href="service.href" variant="secondary" size="sm" class="mt-3">
+                        {{ service.cta }}
+                    </Button>
                 </Card>
             </div>
+
+            <p class="mt-6 text-sm text-muted">
+                Not sure where to start?
+                <a :href="route('pages.how-it-works')" class="underline underline-offset-4">
+                    Read how each of these works
+                </a>.
+            </p>
         </section>
     </PublicLayout>
 </template>
