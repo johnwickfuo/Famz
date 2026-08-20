@@ -23,6 +23,7 @@ const nav = [
     { label: 'Wanted', href: route('requests.index') },
     { label: 'Training', href: route('academy.home') },
     { label: 'Mentors', href: route('mentors.find') },
+    { label: 'Ask us', href: route('consultations.create') },
     { label: 'Farm jobs', href: route('sections.show', 'jobs') },
 ];
 

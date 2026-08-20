@@ -10,6 +10,7 @@ use App\Http\Controllers\BuyerRequestController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CatalogueController;
 use App\Http\Controllers\CheckoutController;
+use App\Http\Controllers\Consultations\ConsultationController;
 use App\Http\Controllers\DisputeController;
 use App\Http\Controllers\Mentorship\EngagementController;
 use App\Http\Controllers\Mentorship\MentorDirectoryController;
@@ -43,6 +44,14 @@ Route::get('/requests', [BuyerRequestController::class, 'index'])->name('request
  */
 Route::get('/academy', [AcademyController::class, 'home'])->name('academy.home');
 Route::get('/academy/courses', [AcademyController::class, 'catalogue'])->name('academy.catalogue');
+
+/*
+ * Consultations with the company itself. Public and guest-friendly on purpose:
+ * asking a farmer whose birds are dying to register before they can describe
+ * the problem loses the booking. Four fields and no account.
+ */
+Route::get('/consult', [ConsultationController::class, 'create'])->name('consultations.create');
+Route::post('/consult', [ConsultationController::class, 'store'])->name('consultations.store');
 
 /*
  * Finding a mentor. Public: somebody should be able to see who is here and
@@ -211,6 +220,11 @@ Route::middleware('auth')->group(function () {
     Route::post('/mentorship/{engagement}/dispute', [EngagementController::class, 'dispute'])
         ->name('mentorship.dispute');
 
+    // Everything this person has asked us about.
+    Route::get('/consultations', [ConsultationController::class, 'index'])->name('consultations.index');
+    Route::post('/consultations/{consultation}/pay', [ConsultationController::class, 'pay'])
+        ->name('consultations.pay');
+
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
     Route::get('/notifications/{notification}', [NotificationController::class, 'read'])
         ->name('notifications.read');
@@ -245,3 +259,14 @@ Route::get('/academy/{course}', [AcademyController::class, 'show'])->name('acade
  * /mentors/shortlist and /mentors/pending.
  */
 Route::get('/mentors/{mentor}', [MentorDirectoryController::class, 'show'])->name('mentors.show');
+
+/*
+ * A single consultation, open to the person who booked it — signed in, or a
+ * guest holding the reference in their session. Registered here, after
+ * /consultations, for the same reason as every other slug route in this file.
+ */
+Route::get('/consult/{consultation}', [ConsultationController::class, 'show'])->name('consultations.show');
+Route::post('/consult/{consultation}/follow-up', [ConsultationController::class, 'followUp'])
+    ->name('consultations.followup');
+Route::get('/consult/{consultation}/report.pdf', [ConsultationController::class, 'reportPdf'])
+    ->name('consultations.report');
