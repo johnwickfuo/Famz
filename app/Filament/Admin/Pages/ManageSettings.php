@@ -57,6 +57,10 @@ class ManageSettings extends Page
         'marketplace_commission_percent',
         'consultation_standard_response_hours',
         'consultation_urgent_response_hours',
+        'consultation_working_hours_start',
+        'consultation_working_hours_end',
+        'consultation_working_days',
+        'consultation_followup_days',
         'buyer_request_expiry_days',
         'quote_validity_days',
         'settlement_driver',
@@ -236,6 +240,40 @@ class ManageSettings extends Page
                 ->numeric()
                 ->minValue(1)
                 ->suffix(__('hours'))
+                ->required(),
+
+            TextInput::make('consultation_working_hours_start')
+                ->label(__('Office opens'))
+                ->numeric()
+                ->minValue(0)
+                ->maxValue(23)
+                ->suffix(__(':00'))
+                // The urgent promise is quoted in WORKING hours, so this is
+                // what stops an overnight booking being late before anybody
+                // has read it.
+                ->helperText(__('The urgent response clock only runs between these hours.'))
+                ->required(),
+
+            TextInput::make('consultation_working_hours_end')
+                ->label(__('Office closes'))
+                ->numeric()
+                ->minValue(1)
+                ->maxValue(24)
+                ->suffix(__(':00'))
+                ->required(),
+
+            TextInput::make('consultation_working_days')
+                ->label(__('Working days'))
+                ->helperText(__('Day numbers, comma separated. 1 is Monday, 7 is Sunday.'))
+                ->placeholder('1,2,3,4,5,6')
+                ->required(),
+
+            TextInput::make('consultation_followup_days')
+                ->label(__('Follow-up window'))
+                ->numeric()
+                ->minValue(0)
+                ->suffix(__('days'))
+                ->helperText(__('How long a client can keep asking questions after a consultation is finished.'))
                 ->required(),
 
             TextInput::make('buyer_request_expiry_days')
