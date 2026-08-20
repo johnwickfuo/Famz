@@ -8,6 +8,7 @@ use App\Http\Controllers\Academy\LessonFileController;
 use App\Http\Controllers\Academy\QuizController;
 use App\Http\Controllers\AssistantController;
 use App\Http\Controllers\AccountController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\BuyerRequestController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CatalogueController;
@@ -148,7 +149,7 @@ Route::post('/cart', [CartController::class, 'store'])->name('cart.store');
 Route::patch('/cart', [CartController::class, 'update'])->name('cart.update');
 Route::delete('/cart', [CartController::class, 'destroy'])->name('cart.destroy');
 
-Route::get('/dashboard', fn () => Inertia::render('Dashboard'))
+Route::get('/dashboard', DashboardController::class)
     ->middleware(['auth', 'verified'])
     ->name('dashboard');
 
