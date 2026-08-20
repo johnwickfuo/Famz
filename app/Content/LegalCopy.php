@@ -252,7 +252,15 @@ class LegalCopy
                 __('We may change these terms. If a change matters — commission, refunds, who is responsible for what — we will tell you before it takes effect, not after.'),
                 __('If you have a problem with something bought here, use the dispute process first. It is faster than anything else available to you and it freezes the money while it is looked at.'),
                 __('These terms are governed by the laws of the Federal Republic of Nigeria.'),
-                __('Questions about any of this go to {company_email}.'),
+                /*
+                 * Deliberately no {company_email} here. That placeholder is
+                 * optional branding and expands to an EMPTY STRING when an
+                 * administrator has not set an address — which left this
+                 * sentence reading "Questions about any of this go to ." on the
+                 * terms of service. The contact page always exists and always
+                 * shows whichever ways of reaching us are configured.
+                 */
+                __('Questions about any of this go through the contact page on this site.'),
             ],
         ];
     }
@@ -321,7 +329,7 @@ class LegalCopy
                         __('A correction, if something is wrong. Most of it you can correct yourself in your account.'),
                         __('Deletion of your account and the data that is not tied to a financial record we must keep.'),
                         __('An end to marketing messages, which you can do yourself in your notification settings.'),
-                        __('Write to {company_email} and we will answer within thirty days.'),
+                        __('Ask through the contact page on this site and we will answer within thirty days.'),
                     ],
                 ],
                 [

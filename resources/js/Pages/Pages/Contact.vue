@@ -4,6 +4,7 @@ import PublicLayout from '@/Layouts/PublicLayout.vue';
 import Card from '@/Components/Ui/Card.vue';
 import Button from '@/Components/Ui/Button.vue';
 import Input from '@/Components/Ui/Input.vue';
+import FieldShell from '@/Components/Ui/FieldShell.vue';
 
 /**
  * Writing to the company.
@@ -80,8 +81,20 @@ function submit() {
 
                     <Input v-model="form.subject" label="What is it about?" :error="form.errors.subject" required />
 
-                    <div>
-                        <label for="contact-message" class="mb-1.5 block text-sm font-semibold">Message</label>
+                    <!--
+                        FieldShell rather than a hand-written label, so this
+                        matches the Input fields above it. A form where three
+                        labels are stencil caps and the fourth is sentence case
+                        looks like two forms stuck together.
+                    -->
+                    <FieldShell
+                        id="contact-message"
+                        label="Message"
+                        :error="form.errors.message"
+                        required
+                        hint-id="contact-message-hint"
+                        error-id="contact-message-error"
+                    >
                         <textarea
                             id="contact-message"
                             v-model="form.message"
@@ -90,8 +103,7 @@ function submit() {
                             required
                             class="w-full rounded-sm border-2 border-ink bg-surface-raised px-3 py-2.5 text-base dark:border-wash dark:bg-grain-800"
                         />
-                        <p v-if="form.errors.message" class="mt-1 text-sm text-cockscomb">{{ form.errors.message }}</p>
-                    </div>
+                    </FieldShell>
 
                     <Button type="submit" :loading="form.processing">Send message</Button>
                 </form>

@@ -69,9 +69,12 @@ defineProps({
 
             <p class="mt-6 text-sm text-muted">
                 Not sure where to start?
-                <a :href="route('pages.how-it-works')" class="underline underline-offset-4">
-                    Read how each of these works
-                </a>.
+                <!--
+                    Closing tag on the same line as the text: Vue keeps the
+                    newline before </a> as whitespace, which renders as
+                    "works ." with a space before the full stop.
+                -->
+                <a :href="route('pages.how-it-works')" class="underline underline-offset-4">Read how each of these works</a>.
             </p>
         </section>
     </PublicLayout>
