@@ -12,6 +12,7 @@ class DatabaseSeeder extends Seeder
             RoleSeeder::class,
             SettingsSeeder::class,
             SpecialisationSeeder::class,
+            WorkerSkillSeeder::class,
             SuperAdminSeeder::class,
         ]);
     }

@@ -102,6 +102,26 @@ class User extends Authenticatable implements FilamentUser, HasAvatar, MustVerif
         return $profile?->isBookable() === true ? $profile : null;
     }
 
+    /**
+     * The jobs board profiles. Both optional, and independent of each other:
+     * somebody can look for work and advertise for help at the same time, which
+     * on a smallholding is not unusual.
+     *
+     * @return HasOne<WorkerProfile, $this>
+     */
+    public function workerProfile(): HasOne
+    {
+        return $this->hasOne(WorkerProfile::class);
+    }
+
+    /**
+     * @return HasOne<EmployerProfile, $this>
+     */
+    public function employerProfile(): HasOne
+    {
+        return $this->hasOne(EmployerProfile::class);
+    }
+
     public function profileOrNew(): Profile
     {
         return $this->profile ?? $this->profile()->make();
