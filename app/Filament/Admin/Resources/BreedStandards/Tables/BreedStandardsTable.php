@@ -56,11 +56,25 @@ class BreedStandardsTable
                 TextColumn::make('water_multiplier')
                     ->label(__('Water ×'))
                     ->alignRight()
-                    ->visibleFrom('lg'),
+                    // Last of the columns to earn its width. Held back to the
+                    // widest breakpoint so that "In use" and the row actions
+                    // stay on screen at 1280, where they were being pushed a
+                    // hundred pixels off the right edge of a table that gives
+                    // no visual hint it scrolls.
+                    ->visibleFrom('2xl'),
 
                 TextColumn::make('source')
                     ->label(__('Source'))
-                    ->wrap()
+                    /*
+                     * Truncated with the full text on hover, rather than
+                     * wrapped. A publication name is the same string on all
+                     * eight weeks of a breed, and wrapping it turned every row
+                     * into a four-line block — twenty-five rows came to four
+                     * thousand pixels of a table whose whole purpose is being
+                     * scanned against a printed guide.
+                     */
+                    ->limit(18)
+                    ->tooltip(fn (BreedStandard $record): ?string => $record->source)
                     ->visibleFrom('xl'),
 
                 IconColumn::make('is_active')

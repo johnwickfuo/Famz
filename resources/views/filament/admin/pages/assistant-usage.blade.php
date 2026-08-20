@@ -22,15 +22,32 @@
         </div>
 
         @if ($budget['limit'] > 0)
-            <div class="mt-3 h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-white/10">
+            {{--
+                The bar's geometry is inline rather than in utility classes, and
+                deliberately. Tailwind compiles the panel stylesheet from a scan
+                of these files, so a height class used only here exists only if
+                somebody rebuilt the assets after touching this view — which is
+                exactly how this bar rendered at zero pixels the first time.
+                A progress bar that silently has no height is worse than no bar.
+                Colour stays a class: Filament ships those regardless.
+            --}}
+            <div
+                class="mt-3 overflow-hidden rounded-full bg-gray-200 dark:bg-white/10"
+                style="height: 8px"
+                role="progressbar"
+                aria-valuenow="{{ $budget['percent'] }}"
+                aria-valuemin="0"
+                aria-valuemax="100"
+                aria-label="{{ __('Share of today\'s token budget used') }}"
+            >
                 <div
                     @class([
-                        'h-full rounded-full',
+                        'rounded-full',
                         'bg-primary-500' => $budget['percent'] < 80,
                         'bg-warning-500' => $budget['percent'] >= 80 && ! $budget['over'],
                         'bg-danger-500' => $budget['over'],
                     ])
-                    style="width: {{ max(2, $budget['percent']) }}%"
+                    style="height: 100%; width: {{ max(2, $budget['percent']) }}%"
                 ></div>
             </div>
         @endif
@@ -110,7 +127,7 @@
                     <tbody class="divide-y divide-gray-200 dark:divide-white/10">
                         @foreach ($topQuestions as $question)
                             <tr>
-                                <td class="px-6 py-3 text-gray-950 dark:text-white">{{ $question['question'] }}</td>
+                                <td class="px-6 py-3 text-gray-950 dark:text-white" style="min-width: 16rem">{{ $question['question'] }}</td>
                                 <td class="px-6 py-3 text-right tabular-nums text-gray-500 dark:text-gray-400">
                                     {{ number_format($question['asked']) }}
                                 </td>
@@ -156,16 +173,31 @@
                             <tr>
                                 <td class="whitespace-nowrap px-6 py-3 text-gray-500 dark:text-gray-400">{{ $row['when'] }}</td>
                                 <td class="whitespace-nowrap px-6 py-3 text-gray-950 dark:text-white">{{ $row['who'] }}</td>
-                                <td class="px-6 py-3 text-gray-500 dark:text-gray-400">
+                                {{--
+                                    A floor on the width, set inline for the
+                                    same reason as the bar above: arbitrary
+                                    Tailwind values are only compiled if the
+                                    scan saw them. On a phone this column was
+                                    being crushed to a forty-pixel sliver of
+                                    wrapped letters — the surrounding container
+                                    already scrolls, so scrolling to readable
+                                    text beats fitting unreadable text.
+                                --}}
+                                <td class="px-6 py-3 text-gray-500 dark:text-gray-400" style="min-width: 18rem">
                                     {{ $row['answer'] }}
                                     @if ($row['from_cache'])
                                         <span class="ml-1 rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-600 dark:bg-white/10 dark:text-gray-300">
                                             {{ __('cached') }}
                                         </span>
+                                    @elseif (! $row['from_model'])
+                                        {{-- Written by the platform: a dosage redirect, or an apology. --}}
+                                        <span class="ml-1 rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-600 dark:bg-white/10 dark:text-gray-300">
+                                            {{ __('written by the platform') }}
+                                        </span>
                                     @endif
                                 </td>
                                 <td class="px-6 py-3 text-right tabular-nums text-gray-500 dark:text-gray-400">
-                                    {{ $row['permitted'] > 0 ? number_format($row['permitted']) : '—' }}
+                                    {{ $row['from_model'] && $row['permitted'] > 0 ? number_format($row['permitted']) : '—' }}
                                 </td>
                                 <td class="px-6 py-3 text-right tabular-nums text-gray-500 dark:text-gray-400">
                                     {{ $row['tokens'] > 0 ? number_format($row['tokens']) : '—' }}

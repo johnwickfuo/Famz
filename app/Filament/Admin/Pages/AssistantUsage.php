@@ -211,6 +211,16 @@ class AssistantUsage extends Page implements HasForms
                 'from_cache' => (bool) $message->from_cache,
                 'tokens' => (int) $message->tokens_used,
                 'latency' => (int) $message->latency_ms,
+                /*
+                 * Whether a model wrote this at all. Dosage redirects, "the
+                 * assistant is busy" and unreachable-provider apologies are
+                 * written by the platform, and the context was still assembled
+                 * and stored for them — correctly, it is the record of what was
+                 * available. Counting those figures against an apology the
+                 * model never saw would fill this column with noise and hide
+                 * the one row that matters.
+                 */
+                'from_model' => filled($message->provider) || (bool) $message->from_cache,
                 // How many figures the model was permitted. The audit trail in
                 // one number: an answer with numbers in it and nothing here is
                 // the failure worth investigating.
