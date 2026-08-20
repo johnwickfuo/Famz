@@ -92,8 +92,13 @@ function sendFollowUp() {
                     </p>
 
                     <p v-else class="text-sm">
-                        We first got in touch on {{ consultation.responded_at }}. If you have not heard from us since,
-                        write below and we will pick it up.
+                        We first got in touch on {{ consultation.responded_at }}.
+                        <template v-if="followupsOpen">
+                            If you have not heard from us since, write below and we will pick it up.
+                        </template>
+                        <template v-else>
+                            If you have not heard from us since, reply to the email we sent you and we will pick it up.
+                        </template>
                     </p>
                 </Card>
 
@@ -327,7 +332,9 @@ function sendFollowUp() {
 
                     <template v-if="consultation.paid">
                         <hr class="seam my-4" />
-                        <p class="text-sm">Paid. We are on it.</p>
+                        <p class="text-sm">
+                            {{ consultation.completed ? 'Paid, and the work is finished.' : 'Paid. We are on it.' }}
+                        </p>
                     </template>
 
                     <template v-if="isGuest">

@@ -339,6 +339,7 @@ class ConsultationController extends Controller
             'quote' => $consultation->quotedAmount(),
             'awaits_payment' => $consultation->awaitsPayment(),
             'paid' => $consultation->isPaid(),
+            'completed' => $consultation->completed_at !== null,
             'has_report' => $consultation->publishedReport !== null,
             'url' => route('consultations.show', $consultation->reference),
         ];

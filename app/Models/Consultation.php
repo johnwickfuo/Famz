@@ -158,6 +158,10 @@ class Consultation extends Model
 
     /**
      * How late, or how long left, in words.
+     *
+     * Two parts because the default single part floors: a deadline seven hours
+     * and fifty minutes away reads as "7 hours from now", which quietly shaves
+     * an hour off a promise somebody is waiting on.
      */
     public function responseCountdown(): ?string
     {
@@ -165,7 +169,7 @@ class Consultation extends Model
             return null;
         }
 
-        return $this->response_due_at?->diffForHumans();
+        return $this->response_due_at?->diffForHumans(parts: 2);
     }
 
     /**

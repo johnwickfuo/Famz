@@ -162,7 +162,7 @@ class ConsultationService
      */
     public function markPaid(Consultation $consultation, ?string $orderReference = null): bool
     {
-        return DB::transaction(function () use ($consultation, $orderReference): bool {
+        $paid = DB::transaction(function () use ($consultation, $orderReference): bool {
             $locked = Consultation::query()->whereKey($consultation->getKey())->lockForUpdate()->first();
 
             if ($locked === null || $locked->isPaid()) {
@@ -177,6 +177,13 @@ class ConsultationService
 
             return true;
         });
+
+        // The write goes through a locked copy, so the caller's instance would
+        // otherwise still read as unpaid — and the next thing anybody does with
+        // it is start the work.
+        $consultation->refresh();
+
+        return $paid;
     }
 
     public function start(Consultation $consultation): Consultation
