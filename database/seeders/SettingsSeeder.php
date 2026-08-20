@@ -36,6 +36,13 @@ class SettingsSeeder extends Seeder
         // back with a question about it.
         'consultation_followup_days' => ['type' => 'int', 'value' => '30'],
         'buyer_request_expiry_days' => ['type' => 'int', 'value' => '14'],
+
+        /*
+         * How long a sent farm-setup proposal stands. Cement, galvanised sheet
+         * and feed move fast enough here that a month is already generous —
+         * quoting a build at last quarter's prices is how a company loses money
+         * on a job it won.
+         */
         'quote_validity_days' => ['type' => 'int', 'value' => '30'],
         'settlement_driver' => ['type' => 'string', 'value' => 'escrow'],
         'active_payment_gateway' => ['type' => 'string', 'value' => 'paystack'],
@@ -92,6 +99,16 @@ class SettingsSeeder extends Seeder
 
         // How long after a mentorship period ends the next invoice is due.
         'mentorship_invoice_grace_days' => ['type' => 'int', 'value' => '3'],
+
+        /*
+         * Farm setup quotations.
+         *
+         * The study fee is charged before anybody writes a proposal. Preparing
+         * one is days of costing work against a particular site, and doing that
+         * for every form that arrives is how the service stops being offered.
+         * The fee is a filter as much as it is revenue.
+         */
+        'quotation_study_fee' => ['type' => 'int', 'value' => '5000000'],
 
         // How long after a delivery is marked a buyer may still dispute it.
         // Deliberately not shorter than the escrow window: a buyer must never
