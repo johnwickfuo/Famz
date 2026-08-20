@@ -6,6 +6,7 @@ use App\Http\Controllers\Academy\CourseCheckoutController;
 use App\Http\Controllers\Academy\CoursePlayerController;
 use App\Http\Controllers\Academy\LessonFileController;
 use App\Http\Controllers\Academy\QuizController;
+use App\Http\Controllers\AssistantController;
 use App\Http\Controllers\BuyerRequestController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CatalogueController;
@@ -61,6 +62,23 @@ Route::get('/requests', [BuyerRequestController::class, 'index'])->name('request
  */
 Route::get('/academy', [AcademyController::class, 'home'])->name('academy.home');
 Route::get('/academy/courses', [AcademyController::class, 'catalogue'])->name('academy.catalogue');
+
+/*
+ * The free assistant.
+ *
+ * Public and guest-friendly, deliberately. The people most likely to need a
+ * quick answer at six in the morning about a flock that is off feed are the
+ * least likely to have signed up, and a registration wall here would hide the
+ * platform's most useful free thing from exactly the people it is for.
+ *
+ * Abuse control is not a middleware here — it lives in ChatGuard, because three
+ * different limits with three different windows and a platform-wide token
+ * budget is more than a throttle string can express, and because running out of
+ * budget must degrade to cached answers rather than return a 429.
+ */
+Route::get('/ask', [AssistantController::class, 'show'])->name('assistant.show');
+Route::post('/ask', [AssistantController::class, 'ask'])->name('assistant.ask');
+Route::post('/ask/reset', [AssistantController::class, 'reset'])->name('assistant.reset');
 
 /*
  * Consultations with the company itself. Public and guest-friendly on purpose:

@@ -231,14 +231,20 @@ class ChatService
      */
     private function dosageRedirect(bool $pidgin): string
     {
-        $book = url('/consult');
-
+        /*
+         * No URL in the text. These messages render as plain text in a chat
+         * bubble — never as HTML, which is the right call — so a pasted link
+         * arrives as an unclickable "http://.../consult" that a farmer would
+         * have to retype. The consultation link is permanently on screen just
+         * below the transcript, in the notice, where it is one tap away.
+         */
         if ($pidgin) {
-            return __('I no fit give you drug name or dosage — na vet work be dat, and wrong dose fit finish your animals. Make you book consultation for :url, person wey sabi go look am proper. Wetin I fit help you with na the general side: housing, water, biosecurity, and how you go know say e don serious enough to call vet.', ['url' => $book]);
+            return __('I no fit give you drug name or dosage — na vet work be dat, and wrong dose fit finish your animals. Make you book consultation with the :company team, person wey sabi go look am proper. Wetin I fit help you with na the general side: housing, water, biosecurity, and how you go know say e don serious enough to call vet.', [
+                'company' => $this->branding->name(),
+            ]);
         }
 
-        return __('I will not give drug names or dosages. A wrong dose can kill a flock, and getting it right needs a vet who has actually seen the animals — book a consultation at :url and the :company team will look at it properly. What I can help with is the general side: housing, water, biosecurity, isolating sick birds, and knowing when it has become a vet\'s job.', [
-            'url' => $book,
+        return __('I will not give drug names or dosages. A wrong dose can kill a flock, and getting it right needs a vet who has actually seen the animals — book a consultation with the :company team and they will look at it properly. What I can help with is the general side: housing, water, biosecurity, isolating sick birds, and knowing when it has become a vet\'s job.', [
             'company' => $this->branding->name(),
         ]);
     }
@@ -254,15 +260,15 @@ class ChatService
     private function busyMessage(bool $pidgin): string
     {
         return $pidgin
-            ? __('Plenty people don ask me question today, so I no fit work out this one now. Try again later, or book consultation for :url if e urgent.', ['url' => url('/consult')])
-            : __('I have answered a great many questions today and cannot work through a new one right now. Common questions still answer instantly — try again later, or book a consultation at :url if it is urgent.', ['url' => url('/consult')]);
+            ? __('Plenty people don ask me question today, so I no fit work out this one now. Try again later, or book consultation if e urgent.')
+            : __('I have answered a great many questions today and cannot work through a new one right now. Common questions still answer instantly — try again later, or book a consultation if it is urgent.');
     }
 
     private function unavailableMessage(bool $pidgin): string
     {
         return $pidgin
-            ? __('Sorry, I no fit answer right now — the assistant no dey reachable. Try again small time, or book consultation for :url if e urgent.', ['url' => url('/consult')])
-            : __('Sorry — I cannot answer right now, the assistant is unreachable. Please try again in a moment, or book a consultation at :url if it is urgent.', ['url' => url('/consult')]);
+            ? __('Sorry, I no fit answer right now — the assistant no dey reachable. Try again small time, or book consultation if e urgent.')
+            : __('Sorry — I cannot answer right now, the assistant is unreachable. Please try again in a moment, or book a consultation if it is urgent.');
     }
 
     /**

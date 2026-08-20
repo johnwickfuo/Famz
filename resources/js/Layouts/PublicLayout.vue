@@ -85,10 +85,28 @@ const year = new Date().getFullYear();
                         </button>
                     </form>
 
+                    <!--
+                        The assistant, as an icon rather than an eighth nav
+                        label. That bar is already tight at 1280 and a text
+                        entry would push it over; an icon next to the cart also
+                        reads as a thing you open, which is what it is.
+                    -->
+                    <Link
+                        :href="route('assistant.show')"
+                        class="shrink-0 rounded-sm border-2 border-wash p-2"
+                        :class="user ? 'ml-auto sm:ml-0' : ''"
+                    >
+                        <span class="sr-only">Farm assistant — ask a question free</span>
+                        <svg class="size-5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <path d="M2.5 4.5h15v9h-9l-4 3v-3h-2v-9Z" stroke-linejoin="round" />
+                            <path d="M6.5 9h7" stroke-linecap="round" />
+                        </svg>
+                    </Link>
+
                     <Link
                         v-if="user"
                         :href="route('notifications.index')"
-                        class="relative ml-auto shrink-0 rounded-sm border-2 border-wash p-2 sm:ml-0"
+                        class="relative shrink-0 rounded-sm border-2 border-wash p-2"
                     >
                         <span class="sr-only">
                             What has happened<span v-if="unread">, {{ unread }} unread</span>
@@ -107,7 +125,6 @@ const year = new Date().getFullYear();
                     <Link
                         :href="route('cart.index')"
                         class="relative shrink-0 rounded-sm border-2 border-wash p-2"
-                        :class="user ? '' : 'ml-auto sm:ml-0'"
                     >
                         <span class="sr-only">
                             Cart<span v-if="cartCount">, {{ cartCount }} item{{ cartCount === 1 ? '' : 's' }}</span>
