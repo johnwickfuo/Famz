@@ -134,6 +134,34 @@ class SettingsSeeder extends Seeder
         // it at all.
         'ai_price_max_age_days' => ['type' => 'int', 'value' => '21'],
 
+        /*
+         * Abuse control. The assistant is free and open to anyone who lands on
+         * the site, which is a product decision with a bill attached — somebody
+         * will eventually point a script at it, and without these it costs real
+         * money until a person notices.
+         *
+         * Three limits because one is always the wrong one: an account gets a
+         * generous day's worth, a guest session rather less, and a connection
+         * gets an hourly ceiling that a script cannot walk around by clearing
+         * its cookies.
+         */
+        'ai_user_daily_messages' => ['type' => 'int', 'value' => '60'],
+        'ai_guest_daily_messages' => ['type' => 'int', 'value' => '20'],
+        'ai_ip_hourly_messages' => ['type' => 'int', 'value' => '40'],
+
+        /*
+         * A day's tokens across the whole platform. When it is spent the
+         * assistant does not start erroring — it drops to answering only from
+         * its cache, which is where the common questions already live. Zero
+         * means no ceiling rather than no service.
+         */
+        'ai_daily_token_budget' => ['type' => 'int', 'value' => '500000'],
+
+        // How long an answer stays cached. The cache key includes a
+        // fingerprint of the figures used, so a changed price invalidates its
+        // own answers regardless of this.
+        'ai_answer_cache_hours' => ['type' => 'int', 'value' => '24'],
+
         // How long after a delivery is marked a buyer may still dispute it.
         // Deliberately not shorter than the escrow window: a buyer must never
         // lose the right to complain before the money has gone.

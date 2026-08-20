@@ -53,12 +53,14 @@ class ChatService
         private readonly IntentClassifier $classifier,
         private readonly ContextAssembler $assembler,
         private readonly SystemPrompt $prompt,
+        private readonly AnswerCache $cache,
         private readonly BrandingService $branding,
     ) {}
 
     /**
      * @param  array<int, AiMessage>  $history  Oldest first.
-     * @param  array<string, mixed>  $options   `state` biases price lookups.
+     * @param  array<string, mixed>  $options   `state` biases price lookups;
+     *                                          `cache_only` forbids spending money on this one.
      */
     public function answer(string $message, array $history = [], array $options = []): ChatReply
     {
@@ -87,10 +89,45 @@ class ChatService
 
         $context = $this->assembler->assemble($this->withDefaultState($intent, $options));
 
+        /*
+         * The cache is only consulted on the first question of a thread.
+         * "And for 1,000 of them?" is not a question that can be answered from
+         * a store keyed on its own words — the meaning is in the turn before
+         * it — and replaying a cached answer into a conversation is how a bot
+         * ends up confidently answering something nobody asked.
+         */
+        $cacheable = $history === [];
+        $normalised = $this->normalise($message);
+
+        if ($cacheable) {
+            $hit = $this->cache->get($normalised, $context);
+
+            if ($hit !== null) {
+                return ChatReply::cached($hit, $intent->type, $context);
+            }
+        }
+
+        /*
+         * Out of budget for the day. Not an error — the assistant says so
+         * plainly and stays up. Somebody asking a common question a minute
+         * later still gets a real answer out of the cache above, which is
+         * exactly why the cache is checked first.
+         */
+        if (($options['cache_only'] ?? false) === true) {
+            return ChatReply::written($this->busyMessage($pidgin), $intent->type, $context);
+        }
+
+        /*
+         * Positional, not named. The provider is meant to be swappable, and a
+         * named-argument call binds this line to the parameter NAMES in the
+         * interface — an implementation that spells them differently fatals at
+         * runtime with "unknown named parameter", which is a baffling error to
+         * hit while writing a perfectly valid adapter.
+         */
         $response = $this->provider->chat(
-            systemPrompt: $this->prompt->build($context, $this->situationNotes($intent, $context)),
-            history: $this->window($history),
-            message: $message,
+            $this->prompt->build($context, $this->situationNotes($intent, $context)),
+            $this->window($history),
+            $message,
         );
 
         if (! $response->ok) {
@@ -102,8 +139,14 @@ class ChatService
             );
         }
 
+        $text = trim($response->text);
+
+        if ($cacheable) {
+            $this->cache->put($normalised, $context, $text);
+        }
+
         return ChatReply::fromProvider(
-            text: trim($response->text),
+            text: $text,
             intent: $intent->type,
             context: $context,
             provider: $this->provider->name(),
@@ -198,6 +241,21 @@ class ChatService
             'url' => $book,
             'company' => $this->branding->name(),
         ]);
+    }
+
+    /**
+     * The day's budget is spent and this question was not in the cache.
+     *
+     * Says what is actually true. "Try again tomorrow" would be a lie by
+     * omission — a common question asked a minute from now will be answered
+     * from the cache — and pretending to be broken when the platform has
+     * simply chosen a ceiling is not a good way to be trusted.
+     */
+    private function busyMessage(bool $pidgin): string
+    {
+        return $pidgin
+            ? __('Plenty people don ask me question today, so I no fit work out this one now. Try again later, or book consultation for :url if e urgent.', ['url' => url('/consult')])
+            : __('I have answered a great many questions today and cannot work through a new one right now. Common questions still answer instantly — try again later, or book a consultation at :url if it is urgent.', ['url' => url('/consult')]);
     }
 
     private function unavailableMessage(bool $pidgin): string
