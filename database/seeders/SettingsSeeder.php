@@ -18,6 +18,23 @@ class SettingsSeeder extends Seeder
         'marketplace_commission_percent' => ['type' => 'float', 'value' => '5'],
         'consultation_standard_response_hours' => ['type' => 'int', 'value' => '48'],
         'consultation_urgent_response_hours' => ['type' => 'int', 'value' => '6'],
+
+        /*
+         * The urgent promise is quoted in WORKING hours, so the clock needs to
+         * know when the office is open. Six hours from a submission at nine at
+         * night is three in the morning, and a queue where every overnight
+         * booking is already overdue is a queue nobody trusts.
+         *
+         * Monday to Saturday by default: agriculture does not keep banking
+         * hours, and a Saturday call-back is normal here.
+         */
+        'consultation_working_hours_start' => ['type' => 'int', 'value' => '8'],
+        'consultation_working_hours_end' => ['type' => 'int', 'value' => '17'],
+        'consultation_working_days' => ['type' => 'string', 'value' => '1,2,3,4,5,6'],
+
+        // How long after a consultation is finished the client can still come
+        // back with a question about it.
+        'consultation_followup_days' => ['type' => 'int', 'value' => '30'],
         'buyer_request_expiry_days' => ['type' => 'int', 'value' => '14'],
         'quote_validity_days' => ['type' => 'int', 'value' => '30'],
         'settlement_driver' => ['type' => 'string', 'value' => 'escrow'],
