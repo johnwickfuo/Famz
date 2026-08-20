@@ -103,7 +103,10 @@ class ReportsRelationManager extends RelationManager
                     ->label(__('Report'))
                     ->wrap(),
 
-                IconColumn::make('published_at')
+                // Not named `published_at`: the date column below already uses
+                // that key, and two columns of the same name collide — the
+                // second wins and this tick disappears without a word.
+                IconColumn::make('is_published')
                     ->label(__('Sent to them'))
                     ->boolean()
                     ->getStateUsing(fn (ConsultationReport $record): bool => $record->isPublished()),

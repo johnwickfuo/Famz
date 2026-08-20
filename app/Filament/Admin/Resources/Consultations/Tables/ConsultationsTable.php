@@ -45,25 +45,13 @@ class ConsultationsTable
                 $record->isDueSoon() => 'bg-warning-50 dark:bg-warning-950/30',
                 default => null,
             })
+            /*
+             * Ordered by what somebody working this screen needs, in the order
+             * they need it: how late it is, who to ring, whether it is urgent.
+             * The reference is what a client reads out on the phone, not what
+             * an administrator scans for, so it sits behind those three.
+             */
             ->columns([
-                TextColumn::make('reference')
-                    ->label(__('Reference'))
-                    ->searchable()
-                    ->copyable()
-                    ->weight('bold'),
-
-                TextColumn::make('full_name')
-                    ->label(__('Who'))
-                    ->description(fn (Consultation $record): string => $record->phone)
-                    ->searchable(['full_name', 'phone', 'email'])
-                    ->wrap(),
-
-                TextColumn::make('tier')
-                    ->label(__('Service'))
-                    ->badge()
-                    ->formatStateUsing(fn (ConsultationTier $state): string => $state->label())
-                    ->color(fn (ConsultationTier $state): string => $state->isUrgent() ? 'danger' : 'gray'),
-
                 /*
                  * The deadline, said in the way a person needs it: "2 hours
                  * late" rather than a timestamp they have to subtract from now.
@@ -86,29 +74,58 @@ class ConsultationsTable
                     })
                     ->sortable(),
 
-                TextColumn::make('situation')
-                    ->label(__('The problem'))
-                    ->placeholder(__('Nothing written — ring them'))
-                    ->limit(80)
-                    ->wrap()
-                    ->visibleFrom('xl'),
+                TextColumn::make('full_name')
+                    ->label(__('Who'))
+                    ->description(fn (Consultation $record): string => $record->phone)
+                    // Includes the reference, so searching still works on a
+                    // narrow screen where that column is hidden.
+                    ->searchable(['full_name', 'phone', 'email', 'reference'])
+                    ->wrap(),
 
-                TextColumn::make('quoted_amount_kobo')
-                    ->label(__('Quote'))
-                    ->formatStateUsing(fn (?int $state): string => $state === null ? '—' : Money::fromKobo($state))
-                    ->alignRight()
-                    ->visibleFrom('lg'),
+                TextColumn::make('tier')
+                    ->label(__('Service'))
+                    ->badge()
+                    ->formatStateUsing(fn (ConsultationTier $state): string => $state->label())
+                    ->color(fn (ConsultationTier $state): string => $state->isUrgent() ? 'danger' : 'gray'),
 
                 TextColumn::make('status')
                     ->label(__('Status'))
                     ->badge()
                     ->formatStateUsing(fn (ConsultationStatus $state): string => $state->adminLabel())
-                    ->color(fn (ConsultationStatus $state): string => $state->filamentColour()),
+                    ->color(fn (ConsultationStatus $state): string => $state->filamentColour())
+                    ->visibleFrom('md'),
 
-                TextColumn::make('created_at')
-                    ->label(__('Booked'))
-                    ->dateTime('j M, H:i')
-                    ->sortable()
+                TextColumn::make('reference')
+                    ->label(__('Reference'))
+                    ->searchable()
+                    ->copyable()
+                    ->weight('bold')
+                    ->visibleFrom('lg'),
+
+                /*
+                 * Late in the order and late to appear, because in the queue
+                 * this column is mostly a dash: a price exists only after
+                 * somebody has rung, and the rows that need working have not
+                 * been rung yet.
+                 */
+                TextColumn::make('quoted_amount_kobo')
+                    ->label(__('Quote'))
+                    ->formatStateUsing(fn (?int $state): string => $state === null ? '—' : Money::fromKobo($state))
+                    ->alignRight()
+                    ->visibleFrom('2xl'),
+
+                /*
+                 * Truncated rather than wrapped. Wrapped, this column competes
+                 * with every other one for width and loses, and a paragraph
+                 * broken to one word a line is harder to read than no paragraph
+                 * at all — the whole of it is one hover away, and one click away
+                 * on the record itself.
+                 */
+                TextColumn::make('situation')
+                    ->label(__('The problem'))
+                    ->placeholder(__('Nothing written — ring them'))
+                    ->limit(60)
+                    ->tooltip(fn (Consultation $record): ?string => $record->situation)
                     ->visibleFrom('2xl'),
             ])
             ->filters([

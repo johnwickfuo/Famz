@@ -27,8 +27,11 @@ class ViewConsultation extends ViewRecord
                         ->color(fn (Consultation $record): string => $record->tier->isUrgent() ? 'danger' : 'gray'),
 
                     TextEntry::make('response_due_at')
+                        // No year: this is a deadline measured in hours, and the
+                        // longer string is what pushes the badge past the edge
+                        // of its column.
                         ->label(__('Response due'))
-                        ->dateTime('j M Y, H:i')
+                        ->dateTime('j M, H:i')
                         ->badge()
                         ->color(fn (Consultation $record): string => match (true) {
                             $record->first_responded_at !== null => 'success',
@@ -78,9 +81,12 @@ class ViewConsultation extends ViewRecord
                             $record->animal_type,
                             $record->flock_size ? number_format($record->flock_size).' '.__('head') : null,
                         ])->filter()->implode(' · ') ?: '—'),
+                    // Hidden rather than empty: a "Photographs" heading with
+                    // nothing under it reads as a picture that failed to load.
                     ImageEntry::make('attachments')
                         ->label(__('Photographs'))
                         ->disk('public')
+                        ->visible(fn (Consultation $record): bool => filled($record->attachments))
                         ->columnSpanFull(),
                 ]),
 

@@ -17,15 +17,17 @@ class ListConsultations extends ListRecords
      * Tabs by what somebody is about to do, not by every status in the enum.
      *
      * "Late" comes first and carries its own count, because it is the only tab
-     * that represents a broken promise. A tab per status would be eight tabs,
-     * six of which nobody opens.
+     * that represents a broken promise.
+     *
+     * Labels are kept to a word or two so the whole strip fits on a laptop.
+     * A tab that has scrolled off the right-hand edge is a tab nobody clicks.
      *
      * @return array<string, Tab>
      */
     public function getTabs(): array
     {
         return [
-            'queue' => Tab::make(__('The queue'))
+            'queue' => Tab::make(__('Queue'))
                 ->modifyQueryUsing(fn (Builder $query) => $query
                     ->whereIn('status', ConsultationResource::openStatuses()))
                 ->badge(Consultation::query()->whereIn('status', ConsultationResource::openStatuses())->count()),
@@ -35,24 +37,24 @@ class ListConsultations extends ListRecords
                 ->badge(Consultation::query()->overdue()->count())
                 ->badgeColor('danger'),
 
-            'to_call' => Tab::make(__('Needs a call'))
+            'to_call' => Tab::make(__('To call'))
                 ->modifyQueryUsing(fn (Builder $query) => $query
                     ->where('status', ConsultationStatus::Submitted))
                 ->badge(Consultation::query()->where('status', ConsultationStatus::Submitted)->count()),
 
-            'to_quote' => Tab::make(__('Needs a price'))
+            'to_quote' => Tab::make(__('To price'))
                 ->modifyQueryUsing(fn (Builder $query) => $query
                     ->where('status', ConsultationStatus::Contacted))
                 ->badge(Consultation::query()->where('status', ConsultationStatus::Contacted)->count()),
 
-            'unpaid' => Tab::make(__('Waiting on payment'))
+            'unpaid' => Tab::make(__('Unpaid'))
                 ->modifyQueryUsing(fn (Builder $query) => $query
                     ->whereIn('status', [ConsultationStatus::Quoted, ConsultationStatus::AwaitingPayment]))
                 ->badge(Consultation::query()
                     ->whereIn('status', [ConsultationStatus::Quoted, ConsultationStatus::AwaitingPayment])
                     ->count()),
 
-            'working' => Tab::make(__('Work to do'))
+            'working' => Tab::make(__('Working'))
                 ->modifyQueryUsing(fn (Builder $query) => $query
                     ->whereIn('status', [ConsultationStatus::Paid, ConsultationStatus::InProgress]))
                 ->badge(Consultation::query()
@@ -63,7 +65,7 @@ class ListConsultations extends ListRecords
                 ->modifyQueryUsing(fn (Builder $query) => $query
                     ->whereIn('status', [ConsultationStatus::Completed, ConsultationStatus::Cancelled])),
 
-            'all' => Tab::make(__('Everything')),
+            'all' => Tab::make(__('All')),
         ];
     }
 
