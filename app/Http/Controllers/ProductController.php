@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\Platform\Seo;
 use App\Http\Resources\ProductCard;
 use App\Models\Offer;
 use App\Models\Product;
@@ -25,6 +26,18 @@ class ProductController extends Controller
         $product->load(['images', 'variants', 'priceTiers', 'seller', 'category']);
 
         $this->countView($request, $product);
+
+        /*
+         * A product page is the thing most likely to be pasted into a WhatsApp
+         * group, and WhatsApp reads these tags and runs no JavaScript. The
+         * image is the product's own, so a shared link shows the bag of feed
+         * rather than the site logo.
+         */
+        app(Seo::class)
+            ->title($product->name)
+            ->description($product->description)
+            ->image($product->images->first()?->url())
+            ->type('product');
 
         return Inertia::render('Catalogue/Product', [
             'product' => $this->productProps($product, $request->user()),

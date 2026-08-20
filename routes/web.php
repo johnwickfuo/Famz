@@ -30,6 +30,7 @@ use App\Http\Controllers\ContactController;
 use App\Http\Controllers\NotificationPreferenceController;
 use App\Http\Controllers\PageController;
 use App\Http\Controllers\SearchController;
+use App\Http\Controllers\SitemapController;
 use App\Http\Controllers\OfferController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ProductController;
@@ -55,6 +56,16 @@ Route::get('/jobs', [JobBoardController::class, 'index'])->name('jobs.index');
 
 // The catalogue.
 Route::get('/market', [CatalogueController::class, 'home'])->name('catalogue.home');
+/*
+ * The sitemap.
+ *
+ * The rule that shapes it: nothing carrying a contact detail goes in. A sitemap
+ * is an invitation to index, and indexing a page with somebody's phone number
+ * on it puts that number in a search engine forever, outside every rate limit
+ * and log built to protect it.
+ */
+Route::get('/sitemap.xml', SitemapController::class)->name('sitemap');
+
 /*
  * The pages that explain what this place is.
  *

@@ -13,6 +13,7 @@ use App\Support\Money;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Models\Concerns\RecordsActivity;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -37,7 +38,7 @@ use Illuminate\Support\Str;
 ])]
 class QuotationRequest extends Model
 {
-    use HasFactory;
+    use HasFactory, RecordsActivity;
 
     protected function casts(): array
     {
@@ -319,5 +320,13 @@ class QuotationRequest extends Model
             QuotationRequestStatus::Submitted,
             QuotationRequestStatus::StudyFeePending,
         ]);
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    protected function activityAttributes(): array
+    {
+        return ['status'];
     }
 }

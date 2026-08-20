@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Academy;
 
+use App\Services\Platform\Seo;
 use App\Enums\CourseLevel;
 use App\Http\Controllers\Controller;
 use App\Models\Course;
@@ -139,6 +140,12 @@ class AcademyController extends Controller
         $course->loadCount('enrolments');
 
         $enrolment = $this->enrolments->enrolmentFor($request->user(), $course);
+
+        app(Seo::class)
+            ->title($course->title)
+            ->description($course->summary)
+            ->image($course->coverUrl())
+            ->type('article');
 
         return Inertia::render('Academy/Course', [
             'course' => [

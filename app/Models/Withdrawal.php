@@ -6,6 +6,7 @@ use App\Enums\WithdrawalStatus;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Models\Concerns\RecordsActivity;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Str;
@@ -21,7 +22,7 @@ use Illuminate\Support\Str;
 #[Fillable(['payout_account_id', 'amount_kobo'])]
 class Withdrawal extends Model
 {
-    use HasFactory;
+    use HasFactory, RecordsActivity;
 
     protected static function booted(): void
     {
@@ -111,5 +112,13 @@ class Withdrawal extends Model
     public function scopeAwaitingApproval(Builder $query): Builder
     {
         return $query->where('status', WithdrawalStatus::Requested);
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    protected function activityAttributes(): array
+    {
+        return ['status', 'amount_kobo', 'payout_account_id', 'gateway_reference'];
     }
 }

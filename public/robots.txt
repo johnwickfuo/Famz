@@ -7,9 +7,26 @@ User-agent: *
 Disallow: /mentors/join
 Disallow: /mentors/join/
 
+# The worker directory. These pages are individual people's profiles, and the
+# ones an employer can see carry a phone number. Indexing them would put those
+# numbers in a search engine forever — outside the rate limit, outside the
+# disclosure log, and outside anything this platform could take back. The
+# sitemap leaves them out and the pages themselves send noindex; this is the
+# third lock on the same door.
+Disallow: /jobs/workers
+Disallow: /jobs/workers/
+
+# Somebody's own account, dashboard and notifications. Nothing here renders for
+# a crawler, but there is no reason to send one down the corridor.
+Disallow: /account
+Disallow: /dashboard
+Disallow: /notifications
+
 # Signed, single-use links to course material and private checkouts. Nothing
 # behind these renders for a crawler anyway.
 Disallow: /academy/content/
 Disallow: /agreed/
 
 Allow: /
+
+Sitemap: /sitemap.xml

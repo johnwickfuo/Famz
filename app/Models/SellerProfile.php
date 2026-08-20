@@ -8,6 +8,7 @@ use App\Enums\SellerStatus;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Models\Concerns\RecordsActivity;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -42,7 +43,7 @@ use Illuminate\Support\Str;
 ])]
 class SellerProfile extends Model
 {
-    use HasFactory;
+    use HasFactory, RecordsActivity;
 
     /**
      * The number of approved listings after which a seller's new products stop
@@ -222,5 +223,13 @@ class SellerProfile extends Model
     public function getRouteKeyName(): string
     {
         return 'slug';
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    protected function activityAttributes(): array
+    {
+        return ['status', 'reviewed_by', 'rejection_reason'];
     }
 }

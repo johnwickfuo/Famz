@@ -23,6 +23,7 @@ use App\Policies\SellerProfilePolicy;
 use App\Policies\SubOrderPolicy;
 use App\Policies\WorkerProfilePolicy;
 use App\Services\Ai\AiProvider;
+use App\Services\Platform\Seo;
 use App\Services\Ai\GeminiProvider;
 use App\Services\Ai\GeminiTagResolver;
 use App\Services\Ai\NullAiProvider;
@@ -57,6 +58,13 @@ class AppServiceProvider extends ServiceProvider
          * deployment with no API key actually runs, and the assistant degrades
          * to an honest "I cannot answer right now" rather than a 500.
          */
+        /*
+         * Per-request, and scoped rather than singleton for that reason: a
+         * controller sets a title on it and a queued job in the same process
+         * must not inherit that title.
+         */
+        $this->app->scoped(Seo::class);
+
         $this->app->singleton(AiProvider::class, function (): AiProvider {
             $gemini = new GeminiProvider;
 

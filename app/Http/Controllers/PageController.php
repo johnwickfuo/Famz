@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Content\LegalCopy;
 use App\Content\PlatformCopy;
 use App\Services\Branding\BrandingService;
+use App\Services\Platform\Seo;
 use Illuminate\Support\Facades\Cache;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -35,40 +36,72 @@ class PageController extends Controller
         private readonly PlatformCopy $copy,
         private readonly LegalCopy $legal,
         private readonly BrandingService $branding,
+        private readonly Seo $seo,
     ) {}
+
+    /**
+     * Describe the page to a crawler and a link preview.
+     *
+     * Taken from the page's own lead paragraph rather than written separately:
+     * two descriptions of the same page drift, and the one nobody sees drifts
+     * first.
+     *
+     * @param  array<string, mixed>  $page
+     */
+    private function describe(array $page): void
+    {
+        $this->seo
+            ->title($page['title'] ?? null)
+            ->description($page['lead'] ?? $page['intro'] ?? null);
+    }
 
     public function about(): Response
     {
         return Inertia::render('Pages/About', [
-            'page' => $this->expanded('about', fn (): array => $this->copy->about()),
+            'page' => tap(
+                $this->expanded('about', fn (): array => $this->copy->about()),
+                fn (array $page) => $this->describe($page),
+            ),
         ]);
     }
 
     public function howItWorks(): Response
     {
         return Inertia::render('Pages/HowItWorks', [
-            'page' => $this->expanded('how-it-works', fn (): array => $this->copy->howItWorks()),
+            'page' => tap(
+                $this->expanded('how-it-works', fn (): array => $this->copy->howItWorks()),
+                fn (array $page) => $this->describe($page),
+            ),
         ]);
     }
 
     public function faq(): Response
     {
         return Inertia::render('Pages/Faq', [
-            'page' => $this->expanded('faq', fn (): array => $this->copy->faq()),
+            'page' => tap(
+                $this->expanded('faq', fn (): array => $this->copy->faq()),
+                fn (array $page) => $this->describe($page),
+            ),
         ]);
     }
 
     public function terms(): Response
     {
         return Inertia::render('Pages/Legal', [
-            'page' => $this->expanded('terms', fn (): array => $this->legal->terms()),
+            'page' => tap(
+                $this->expanded('terms', fn (): array => $this->legal->terms()),
+                fn (array $page) => $this->describe($page),
+            ),
         ]);
     }
 
     public function privacy(): Response
     {
         return Inertia::render('Pages/Legal', [
-            'page' => $this->expanded('privacy', fn (): array => $this->legal->privacy()),
+            'page' => tap(
+                $this->expanded('privacy', fn (): array => $this->legal->privacy()),
+                fn (array $page) => $this->describe($page),
+            ),
         ]);
     }
 
@@ -82,7 +115,10 @@ class PageController extends Controller
         abort_unless(isset($guides[$role]), 404);
 
         return Inertia::render('Pages/Guide', [
-            'page' => $this->expanded("guide:{$role}", fn (): array => $guides[$role]),
+            'page' => tap(
+                $this->expanded("guide:{$role}", fn (): array => $guides[$role]),
+                fn (array $page) => $this->describe($page),
+            ),
             'role' => $role,
             'others' => collect($guides)
                 ->except($role)

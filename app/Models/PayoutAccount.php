@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Models\Concerns\RecordsActivity;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -20,7 +21,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 #[Fillable(['bank_code', 'bank_name', 'account_number'])]
 class PayoutAccount extends Model
 {
-    use HasFactory;
+    use HasFactory, RecordsActivity;
     use SoftDeletes;
 
     protected function casts(): array
@@ -103,5 +104,13 @@ class PayoutAccount extends Model
     public function scopeVerified(Builder $query): Builder
     {
         return $query->where('is_verified', true);
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    protected function activityAttributes(): array
+    {
+        return ['bank_code', 'bank_name', 'is_default'];
     }
 }

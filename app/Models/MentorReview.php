@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\ReviewStatus;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Models\Concerns\RecordsActivity;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -19,7 +20,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class MentorReview extends Model
 {
-    use HasFactory;
+    use HasFactory, RecordsActivity;
 
     protected function casts(): array
     {
@@ -110,5 +111,13 @@ class MentorReview extends Model
     public function scopeAwaitingModeration(Builder $query): Builder
     {
         return $query->where('status', ReviewStatus::Pending);
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    protected function activityAttributes(): array
+    {
+        return ['status', 'moderated_by'];
     }
 }

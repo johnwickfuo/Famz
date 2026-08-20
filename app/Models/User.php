@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Models\Concerns\RecordsActivity;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
@@ -23,7 +24,7 @@ use Spatie\Permission\Traits\HasRoles;
 class User extends Authenticatable implements FilamentUser, HasAvatar, MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, HasRoles, Notifiable, SoftDeletes;
+    use HasFactory, HasRoles, Notifiable, RecordsActivity, SoftDeletes;
 
     /**
      * A user who has just been made is pending until someone says otherwise.
@@ -171,5 +172,19 @@ class User extends Authenticatable implements FilamentUser, HasAvatar, MustVerif
     public function getFilamentAvatarUrl(): ?string
     {
         return $this->profile?->avatarUrl();
+    }
+
+    /**
+     * Status and email only.
+     *
+     * Not the password — even hashed, a log is a copy, and a table nobody
+     * thinks of as sensitive is exactly where a copy should not be. Not the
+     * name either: renaming yourself is not a security event.
+     *
+     * @return array<int, string>
+     */
+    protected function activityAttributes(): array
+    {
+        return ['status', 'email'];
     }
 }

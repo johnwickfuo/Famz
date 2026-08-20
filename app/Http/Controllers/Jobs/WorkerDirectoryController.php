@@ -14,6 +14,7 @@ use App\Services\Jobs\JobMatcher;
 use App\Services\Jobs\WorkerContactGuard;
 use App\Support\Nigeria;
 use Illuminate\Http\Request;
+use App\Services\Platform\Seo;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -118,6 +119,15 @@ class WorkerDirectoryController extends Controller
     public function show(Request $request, WorkerProfile $worker): Response
     {
         Gate::authorize('view', $worker);
+
+        /*
+         * Never indexed. This page can carry a phone number, and a search
+         * engine holding one is a disclosure outside every rate limit and log
+         * the jobs module was built around. robots.txt says the same thing and
+         * the sitemap leaves it out — this is the lock that works on a crawler
+         * that arrived from a link somebody pasted.
+         */
+        app(Seo::class)->noindex();
 
         $worker->load('skills');
 

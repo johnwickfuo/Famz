@@ -7,6 +7,7 @@ use App\Enums\ConsultationTier;
 use App\Support\Money;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Models\Concerns\RecordsActivity;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -24,7 +25,7 @@ use Illuminate\Support\Str;
  */
 class Consultation extends Model
 {
-    use HasFactory;
+    use HasFactory, RecordsActivity;
 
     protected function casts(): array
     {
@@ -289,5 +290,13 @@ class Consultation extends Model
         return $query->where('status', ConsultationStatus::Submitted)
             ->whereNotNull('response_due_at')
             ->where('response_due_at', '<', now());
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    protected function activityAttributes(): array
+    {
+        return ['status', 'quoted_amount_kobo', 'quoted_by'];
     }
 }

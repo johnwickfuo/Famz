@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Services\Branding\BrandingService;
+use App\Services\Platform\Seo;
 use App\Services\Cart\CartService;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -30,6 +31,14 @@ class HandleInertiaRequests extends Middleware
             ...parent::share($request),
 
             'branding' => fn (): array => $branding->payload(),
+
+            /*
+             * Resolved late, so a controller that sets a title AFTER the
+             * middleware runs still gets it. A closure here is the difference
+             * between meta tags that describe the page and meta tags that
+             * describe the site.
+             */
+            'seo' => fn (): array => app(Seo::class)->toArray($request->url()),
 
             'auth' => [
                 'user' => fn () => $request->user() === null ? null : [

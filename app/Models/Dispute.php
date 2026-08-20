@@ -7,6 +7,7 @@ use App\Enums\DisputeStatus;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Models\Concerns\RecordsActivity;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -28,7 +29,7 @@ use Illuminate\Support\Facades\Storage;
 #[Fillable(['reason', 'description', 'evidence_images'])]
 class Dispute extends Model
 {
-    use HasFactory;
+    use HasFactory, RecordsActivity;
     use SoftDeletes;
 
     protected function casts(): array
@@ -164,5 +165,13 @@ class Dispute extends Model
             'subOrder',
             fn (Builder $sub) => $sub->where('seller_id', $seller?->getKey() ?? 0),
         );
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    protected function activityAttributes(): array
+    {
+        return ['status', 'resolution', 'resolved_by'];
     }
 }
