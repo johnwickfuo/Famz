@@ -517,6 +517,99 @@ php artisan db:seed --class=DemoMentorSeeder
 Six approved mentors with real packages across poultry, feed, fish, livestock,
 crops and farm business.
 
+## Consultations
+
+A consultation is with **the company**, not with a listed professional. The
+client does not choose a person, and there is no directory to browse: they
+describe a problem, somebody rings them back, and the company decides internally
+who takes it. That is the whole difference from mentorship, and it is why a
+consultation has no assignee column.
+
+### Four fields
+
+Name, phone, email, tier. Everything else on the booking form is optional and
+marked as such, and the form says so out loud. A farmer standing in a house
+losing ten birds a day will not fill in a farm profile, and a form that makes
+them is a form that loses the booking — the rest can be asked on the call.
+
+Guests can book without an account. When somebody later registers with the same
+email their bookings are attached to the new account, so the history does not
+disappear behind a signup.
+
+Photographs are compressed in the browser before upload — a vet will ask for
+pictures either way, and a farmer on patchy data should not spend their bundle
+sending a 6MB phone photo.
+
+### The promise, and the working-hours clock
+
+Two tiers, both read from settings rather than written into the page:
+
+| Tier | Promise | Clock |
+|---|---|---|
+| `standard` | within 48 hours | wall-clock |
+| `urgent` | within 6 **working** hours, at a premium | working hours only |
+
+`response_due_at` is computed at submission and **stored**, not derived. Changing
+the standard window next month must not retroactively make last week's bookings
+late — or, worse, on time.
+
+Urgent counts working hours because that is the honest way to promise six of
+them: somebody who books at nine at night is not owed a call at three in the
+morning, and `ResponseClock` rolls the clock forward to the next open moment
+instead. Working hours and days are themselves settings.
+
+### Book first, pay later
+
+There is **no price list**. The flow is deliberate:
+
+1. The client books. Nothing is charged, and the form says nothing is charged.
+2. Somebody rings them and stamps `first_responded_at`, which stops the clock.
+3. After the conversation an administrator enters a price — a number a person
+   decided, not a rate card. That emails a payment link and shows it on the
+   client's dashboard.
+4. The client pays through the Phase 3 gateway layer. The **full amount goes to
+   the platform**: no commission split and no escrow hold, the same shape the
+   academy uses, because there is no third party to hold money back from.
+5. The work happens, a report is written, and the client can read it and save it
+   as a PDF.
+
+The company cannot quote sensibly before it knows what is wrong, and a farmer
+with dying birds will not stop to agree a price. Both facts point the same way.
+
+### Reports are drafts until somebody says otherwise
+
+A report is invisible to the client until it is published, and publishing is a
+separate deliberate action rather than a checkbox on the form. An administrator
+working through findings over two days must not have half of it appear in
+somebody's dashboard: a client who reads "what we found:" with nothing after it
+has been told something untrue about the work.
+
+The client's page has no flag for this to get wrong — the server sends only
+published reports, so a draft is simply absent.
+
+### The queue
+
+`/admin/consultations` is sorted by `response_due_at` ascending, which is the
+line that turns a list into a queue. Late rows are **tinted**, not merely badged,
+because a colour is read before a word is. The navigation badge counts only late
+work: a badge counting everything open is a number people stop reading after the
+first week, and one that is usually zero is a number they act on.
+
+Record contact sits outside the action menu as a button, because stopping the
+clock is the thing an administrator does most often and it should not be two
+clicks behind a chevron.
+
+### Follow-up
+
+A threaded conversation, open while the work is live and for
+`consultation_followup_days` (default 30) after it finishes. The client's page
+only invites them to write when the thread is actually open; otherwise it points
+them at the email, rather than at a box that is not there.
+
+### Seeing it with something in it
+
+Book one at `/consult` and work it from `/admin/consultations`.
+
 ## Roles
 
 One `users` table. A user may hold any number of roles at once — they are
@@ -526,7 +619,7 @@ additive capabilities, not a hierarchy.
 |---|---|---|
 | `admin` | `/admin` | Settings, branding, users, moderation |
 | `seller` | `/seller` | Listings and orders |
-| `mentor` | `/mentor` | Consultations and training |
+| `mentor` | `/mentor` | Mentorship engagements and packages |
 | `worker` | — | Finds farm work, holds certificates |
 | `employer` | — | Posts farm jobs |
 
