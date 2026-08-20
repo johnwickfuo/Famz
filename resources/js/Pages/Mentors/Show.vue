@@ -145,7 +145,7 @@ function hire() {
 
                             <p class="figures mt-1 text-xs text-muted">
                                 <span v-if="pkg.duration">{{ pkg.duration }}</span>
-                                <span v-if="pkg.sessions"> · {{ pkg.sessions }} session(s)</span>
+                                <span v-if="pkg.sessions"> · {{ pkg.sessions }} session{{ pkg.sessions === 1 ? '' : 's' }}</span>
                             </p>
 
                             <ul v-if="pkg.deliverables.length" class="mt-2 list-disc space-y-0.5 pl-4 text-xs">

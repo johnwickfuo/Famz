@@ -23,6 +23,14 @@ const props = defineProps({
 
 const comparing = ref(false);
 
+const heading = computed(() => {
+    if (props.mentors.length === 0) {
+        return 'Nobody matched that yet';
+    }
+
+    return props.mentors.length === 1 ? '1 person who can help' : `${props.mentors.length} people who can help`;
+});
+
 // Every package from every shortlisted mentor, cheapest first: the question a
 // client actually asks is "what can I get for what I have".
 const allPackages = computed(() =>
@@ -35,7 +43,7 @@ const allPackages = computed(() =>
 <template>
     <PublicLayout title="Mentors for you">
         <p class="stencil mb-2 text-enamel dark:text-chrome">Mentors</p>
-        <h1 class="text-2xl sm:text-3xl">{{ mentors.length }} people who can help</h1>
+        <h1 class="text-2xl sm:text-3xl">{{ heading }}</h1>
 
         <Card class="mt-4">
             <template #header>
@@ -88,13 +96,13 @@ const allPackages = computed(() =>
 
         <template v-else>
             <!-- Prices side by side, cheapest first. -->
-            <Card v-if="comparing" class="mb-6" :padded="false">
+            <Card v-if="comparing" class="mb-6">
                 <template #header>
                     <h2 class="text-base">Every package, cheapest first</h2>
                 </template>
 
-                <div class="overflow-x-auto">
-                    <table class="w-full min-w-[36rem] text-sm">
+                <div class="-mx-1 overflow-x-auto">
+                    <table class="w-full min-w-[32rem] text-sm">
                         <thead>
                             <tr class="border-b-2 border-ink text-left dark:border-wash">
                                 <th class="stencil px-4 py-2">Mentor</th>
@@ -130,7 +138,7 @@ const allPackages = computed(() =>
                     v-for="(mentor, index) in mentors"
                     :key="mentor.slug"
                     :mentor="mentor"
-                    :rank="index + 1"
+                    :rank="mentors.length > 1 ? index + 1 : null"
                 />
             </div>
         </template>

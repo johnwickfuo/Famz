@@ -149,9 +149,13 @@ it('takes the client\'s own tags over anything inferred', function () {
         ->and($match->matched_specialisation_ids)->toBe([$this->feed->id]);
 });
 
-it('ranks a mentor with the matching tag above one without', function () {
-    $right = ($this->makeMentor)($this->brooding);
-    $wrong = ($this->makeMentor)($this->feed);
+it('ranks the better match first among mentors who both fit', function () {
+    // Both do brooding, so both belong on the list. The one with a rating and
+    // finished engagements behind them goes first.
+    $seasoned = ($this->makeMentor)($this->brooding);
+    $seasoned->forceFill(['average_rating' => 4.8, 'reviews_count' => 12, 'engagements_completed' => 20])->save();
+
+    $newcomer = ($this->makeMentor)($this->brooding);
 
     $match = app(MentorMatcher::class)->run(new MatchRequest(
         need: 'brooding day old chicks, they keep dying',
@@ -159,9 +163,12 @@ it('ranks a mentor with the matching tag above one without', function () {
 
     $ranked = collect($match->results);
 
-    expect($ranked->first()['mentor_profile_id'])->toBe($right->id)
-        ->and($ranked->firstWhere('mentor_profile_id', $wrong->id)['score'])
-        ->toBeLessThan($ranked->first()['score']);
+    expect($ranked)->toHaveCount(2)
+        ->and($ranked->first()['mentor_profile_id'])->toBe($seasoned->id)
+        // But not by much: a newcomer who does exactly the right thing must
+        // still be findable, or nobody ever gets a first engagement.
+        ->and($ranked->last()['score'])
+        ->toBeGreaterThan($ranked->first()['score'] * 0.8);
 });
 
 it('marks a mentor whose cheapest package is out of reach', function () {
@@ -272,4 +279,32 @@ it('answers with a shortlist even when nothing matched the words at all', functi
     // says how it was built.
     expect($match->matched_specialisation_ids)->toBe([])
         ->and($match->results_count)->toBe(1);
+});
+
+it('leaves out a mentor who does none of what was asked for', function () {
+    $right = ($this->makeMentor)($this->brooding);
+    ($this->makeMentor)($this->feed);
+
+    $match = app(MentorMatcher::class)->run(new MatchRequest(
+        need: 'brooding day old chicks, they keep dying',
+    ));
+
+    // A crop agronomist shown to somebody whose chicks are dying makes the
+    // whole shortlist untrustworthy, however well the rest of it is ranked.
+    expect($match->results_count)->toBe(1)
+        ->and($match->results[0]['mentor_profile_id'])->toBe($right->id);
+});
+
+it('keeps everybody when it could not work out what was needed', function () {
+    ($this->makeMentor)($this->brooding);
+    ($this->makeMentor)($this->feed);
+
+    $match = app(MentorMatcher::class)->run(new MatchRequest(
+        need: 'zzzz qqqq nothing here resembles agriculture at all',
+    ));
+
+    // Nothing to be irrelevant to. A list ordered by reputation beats an empty
+    // page, and the shortlist says plainly how it was built.
+    expect($match->matched_specialisation_ids)->toBe([])
+        ->and($match->results_count)->toBe(2);
 });

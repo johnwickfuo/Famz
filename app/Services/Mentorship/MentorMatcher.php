@@ -90,7 +90,19 @@ class MentorMatcher
 
         return $mentors
             ->map(fn (MentorProfile $mentor): array => $this->score($mentor, $request, $specialisationIds))
-            ->filter(fn (array $row): bool => $row['score'] > 0)
+            /*
+             * When we worked out what they need, a mentor who does none of it
+             * is not a weaker answer — it is the wrong answer. Showing a crop
+             * agronomist to somebody whose chicks are dying makes the whole
+             * shortlist untrustworthy, however well the rest of it is ranked.
+             *
+             * With no tags at all (nothing inferred and nothing typed) there is
+             * nothing to be irrelevant to, so everybody stays and the page says
+             * how the list was built.
+             */
+            ->filter(fn (array $row): bool => $specialisationIds === []
+                ? $row['score'] > 0
+                : $row['matched_specialisation_ids'] !== [])
             ->sortByDesc('score')
             ->take($limit)
             ->values();

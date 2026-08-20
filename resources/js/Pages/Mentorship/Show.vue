@@ -153,13 +153,13 @@ function confirm() {
                     </div>
                 </Card>
 
-                <Card :padded="false">
+                <Card>
                     <template #header>
                         <h2 class="text-base">Payments</h2>
                     </template>
 
-                    <div class="overflow-x-auto">
-                        <table class="w-full min-w-[30rem] text-sm">
+                    <div class="-mx-1 overflow-x-auto">
+                        <table class="w-full min-w-[26rem] text-sm">
                             <thead>
                                 <tr class="border-b-2 border-ink text-left dark:border-wash">
                                     <th class="stencil px-4 py-2">Period</th>

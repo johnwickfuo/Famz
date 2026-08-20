@@ -394,6 +394,129 @@ Three published courses with modules, lessons, a quiz and **real generated PDF
 handouts** written onto the private disk, so the reader, the watermark and the
 five-minute link can be exercised rather than taken on trust.
 
+## Mentorship
+
+Mentors join **by invitation only**. There is no public signup form, no link in
+any navigation, and the registration page is disallowed in `robots.txt` and
+carries a `noindex` header. None of that is the lock: the lock is that
+`/mentors/join/{token}` needs a token that exists, is unspent and is unexpired,
+checked on the GET and again on the POST under a row lock — so two people racing
+the same forwarded link cannot both come out the other side as mentors.
+
+A test asserts the invariant against the source rather than against a list of
+routes: exactly one file in the whole application may create a `MentorProfile`,
+and it is the one that spends an invitation.
+
+Being invited and being listed are separate decisions. Registration creates a
+pending profile; an administrator approves it, and refuses to approve a mentor
+with no packages — nothing to hire is a dead end in front of every client who
+finds them.
+
+### Matching, and why it cannot depend on the AI
+
+The client writes what is wrong in their own words. That text is mapped onto
+**specialisation tags**, and the tags are what the ranking runs on — keeping the
+paragraph and the tags apart is what stops a shortlist depending on how well
+somebody writes.
+
+The AI layer answers exactly one question, from a **closed vocabulary**, with a
+six-second timeout, no retries, and no code path that throws. Anything it names
+that is not a real tag is discarded. With no `GEMINI_API_KEY` set, the container
+binds `NullTagResolver`, which always declines — so the keyword fallback is what
+runs in development, in the tests, and on any deployment where nobody has signed
+up to Google. **The fallback is the path that must never break, so it is the
+path that runs by default rather than only in an emergency.** The fallback is
+not a stub: it scores every tag against the words in the request using the
+taxonomy's own keyword lists, which is why the seeder writes the phrases a
+farmer would actually type ("my chicks are dying", not "poultry husbandry").
+
+Ranking weighs tag overlap far above rating and completed engagements, and a new
+mentor scores half marks rather than zero. Weighting reputation heavily is how a
+marketplace ends up with five mentors taking all the work and nobody else ever
+getting a first engagement.
+
+A mentor with **no** overlap is left out entirely rather than ranked last: a crop
+agronomist shown to somebody whose chicks are dying makes the whole shortlist
+untrustworthy. When nothing could be inferred at all there is nothing to be
+irrelevant to, so everybody stays — and the page says which of the two happened.
+
+Every run is stored in `mentorship_matches` with the brief, the tags, the
+resolver that produced them and the ranked result, so the ranking can be tuned
+later against what was actually shown.
+
+### Contact details are the product
+
+A client can read a mentor's whole profile, compare every package and see what
+other clients said, and still have no way to reach them. That is the business
+model, so it is enforced structurally rather than by a flag:
+
+- `MentorProfile::publicCard()` — which every listing, shortlist and profile page
+  is built from — **has no contact field in it at all**. Not hidden, absent.
+- `contactFor()` takes the *engagement* rather than a boolean, checks it belongs
+  to this mentor, and asks `EngagementStatus::revealsContact()`. A caller cannot
+  pass `true` and be believed.
+- There is no `contact_unlocked` column that could disagree with the payment.
+
+The exchange is symmetric: the client gets the mentor's WhatsApp at the same
+moment the mentor gets the client's phone. Neither side gives up more than the
+other.
+
+### The money
+
+Payment reuses the Phase 3 layer whole — same gateways, same callback, same
+webhook. A mentorship order has no sub-orders, so none of the marketplace
+settlement runs for it.
+
+Every mentorship ledger entry hangs off an **invoice**, and a one-off engagement
+gets an invoice too. That collapses "paid once" and "paid monthly" into a single
+path — money arrives against an invoice, is held against it, is released against
+it — so a mentor is paid per confirmed period rather than upfront for a term the
+client may abandon in month three.
+
+Both the mentor's share and the platform's commission are **held**. Until the
+work is confirmed the platform has not earned its cut either, and showing it as
+revenue on day one would overstate what the business can spend.
+
+    request  → engagement + invoice, both unpaid, nothing revealed
+    pay      → contact revealed both ways; mentor share and commission HELD
+    finish   → mentor marks it done; the client has 7 days
+    release  → the client confirms, or silence confirms it
+
+Auto-confirmation exists so a mentor is not left unpaid because somebody stopped
+reading their email. Raising a dispute takes the engagement out of that sweep, so
+a client who complains on day six does not have the work confirmed out from under
+them on day seven.
+
+### Disputes
+
+Mentorship disputes route into the Phase 4 system rather than beside it: one
+thread, one set of statuses, one admin queue, one conservation law —
+
+    mentor keeps + platform keeps + client gets back = client paid
+
+— asserted on every resolution path and across a spread of partial refunds.
+Either party may raise one here, unlike the marketplace: a mentor whose client
+vanished after three months of advice has a complaint worth hearing.
+
+### Reviews
+
+Only a client whose engagement **finished** may write one, one per engagement
+enforced by a unique index, and nothing is visible or counts toward a rating
+until an administrator approves it. That costs immediacy and buys the ability to
+take down a review written in a temper, which on a market where one bad rating
+can end a small practice is a trade worth making. The mentor sees it while it
+waits, so nobody learns their rating dropped by noticing the number on their own
+profile.
+
+### Seeing it with something in it
+
+```bash
+php artisan db:seed --class=DemoMentorSeeder
+```
+
+Six approved mentors with real packages across poultry, feed, fish, livestock,
+crops and farm business.
+
 ## Roles
 
 One `users` table. A user may hold any number of roles at once — they are
