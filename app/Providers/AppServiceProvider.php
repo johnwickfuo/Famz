@@ -23,6 +23,7 @@ use App\Policies\SellerProfilePolicy;
 use App\Policies\SubOrderPolicy;
 use App\Policies\WorkerProfilePolicy;
 use App\Services\Ai\AiProvider;
+use App\Services\Catalogue\CatalogueCache;
 use App\Services\Platform\Seo;
 use App\Services\Ai\GeminiProvider;
 use App\Services\Ai\GeminiTagResolver;
@@ -75,6 +76,22 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Vite::prefetch(concurrency: 3);
+
+        /*
+         * Bust the catalogue cache whenever the catalogue changes.
+         *
+         * Hooked on the models rather than in the services that usually do the
+         * writing, because "usually" is the problem: an admin panel edit, a
+         * seeder, a queued auto-approval and a future service all change the
+         * same numbers, and a bust wired into one of those paths is a bust the
+         * other three skip. The failure mode is a listing count that stays
+         * wrong until somebody restarts Redis, which nobody would connect to
+         * the change that caused it.
+         */
+        foreach ([Product::class, Category::class] as $model) {
+            $model::saved(fn () => app(CatalogueCache::class)->flush());
+            $model::deleted(fn () => app(CatalogueCache::class)->flush());
+        }
 
         // Registered explicitly rather than by convention: ownership of a
         // listing is the thing that keeps one seller out of another's records,

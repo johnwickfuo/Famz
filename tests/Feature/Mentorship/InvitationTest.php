@@ -128,7 +128,9 @@ it('keeps the page out of search results', function () {
 });
 
 it('disallows the join path in robots.txt', function () {
-    expect(file_get_contents(public_path('robots.txt')))
+    // Served from a route rather than a static file, so that the Sitemap
+    // directive can carry an absolute URL.
+    expect($this->get('/robots.txt')->getContent())
         ->toContain('Disallow: /mentors/join');
 });
 

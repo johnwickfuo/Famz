@@ -33,6 +33,20 @@ class CategoryCounts
             return $this->subtreeCounts;
         }
 
+        /*
+         * Cached across requests as well as memoised within one. The answer is
+         * byte-identical for every visitor and changes only when a listing is
+         * approved or a category is edited, both of which bust it explicitly.
+         */
+        return $this->subtreeCounts = app(CatalogueCache::class)
+            ->categoryCounts(fn (): array => $this->compute());
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    private function compute(): array
+    {
         /** @var Collection<int, object{id: int, parent_id: int|null}> $categories */
         $categories = Category::query()->get(['id', 'parent_id']);
 
@@ -74,7 +88,7 @@ class CategoryCounts
             $resolve($category->id);
         }
 
-        return $this->subtreeCounts = $totals;
+        return $totals;
     }
 
     public function for(Category|int $category): int

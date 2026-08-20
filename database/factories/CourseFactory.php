@@ -24,7 +24,10 @@ class CourseFactory extends Factory
             'Keeping records that a bank will read',
             'Spotting coccidiosis before it spreads',
             'Building a deep litter house on a budget',
-        ]).' '.fake()->unique()->numerify('##');
+        // Four digits, not two: the pool is exhausted after a hundred courses
+        // in a single process, and Faker's failure there is an opaque "maximum
+        // retries reached" rather than anything that names this line.
+        ]).' '.fake()->unique()->numerify('####');
 
         return [
             'course_category_id' => CourseCategory::factory(),

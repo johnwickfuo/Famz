@@ -155,11 +155,19 @@ it('lists an approved product and leaves a pending one out', function (): void {
 });
 
 it('blocks the sensitive routes in robots.txt', function (): void {
-    $robots = file_get_contents(public_path('robots.txt'));
+    $robots = get('/robots.txt')->assertOk()->getContent();
 
     expect($robots)
         // The brief names both of these specifically.
         ->toContain('Disallow: /mentors/join')
         ->toContain('Disallow: /jobs/workers')
-        ->toContain('Sitemap: /sitemap.xml');
+        // Absolute, which is why this is served from a route rather than as a
+        // static file — a relative Sitemap directive is rejected as invalid.
+        ->toContain('Sitemap: '.route('sitemap'));
+});
+
+it('serves robots.txt as plain text', function (): void {
+    get('/robots.txt')
+        ->assertOk()
+        ->assertHeader('Content-Type', 'text/plain; charset=UTF-8');
 });

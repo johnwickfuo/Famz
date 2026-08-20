@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Content\PlatformCopy;
 use App\Services\Branding\BrandingService;
+use App\Services\Platform\Seo;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -41,6 +42,16 @@ class PublicPageController extends Controller
          * discoverable and consultations, farm setup, the assistant and the
          * wanted board were not — on the one page most first-time visitors see.
          */
+        /*
+         * An explicit description rather than falling back to the tagline.
+         * Branding ships with an empty tagline until an administrator writes
+         * one, so the home page — the single most valuable page to describe —
+         * was going out with no meta description at all.
+         */
+        app(Seo::class)->description(__(
+            'Buy and sell farm inputs across Nigeria, learn from experienced farmers, get advice on your flock, find farm work, and ask free questions any time.'
+        ));
+
         return Inertia::render('Welcome', [
             'services' => collect($this->copy->services())
                 ->map(fn (array $service): array => [

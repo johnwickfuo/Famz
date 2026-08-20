@@ -29,6 +29,7 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\NotificationPreferenceController;
 use App\Http\Controllers\PageController;
+use App\Http\Controllers\RobotsController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\SitemapController;
 use App\Http\Controllers\OfferController;
@@ -65,6 +66,13 @@ Route::get('/market', [CatalogueController::class, 'home'])->name('catalogue.hom
  * and log built to protect it.
  */
 Route::get('/sitemap.xml', SitemapController::class)->name('sitemap');
+
+/*
+ * robots.txt from a route, not a static file: the Sitemap directive has to be
+ * an absolute URL, and a file on disk cannot know which domain it is being
+ * served from.
+ */
+Route::get('/robots.txt', RobotsController::class)->name('robots');
 
 /*
  * The pages that explain what this place is.

@@ -7,6 +7,7 @@ use App\Http\Resources\ProductCard;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\SellerProfile;
+use App\Services\Catalogue\CatalogueCache;
 use App\Services\Catalogue\CatalogueQuery;
 use App\Services\Catalogue\CategoryCounts;
 use App\Support\Money;
@@ -27,16 +28,25 @@ class CatalogueController extends Controller
      */
     public function home(): Response
     {
+        /*
+         * Both blocks are byte-identical for every visitor and change only when
+         * a listing or a category does — and both of those bust this. Caching
+         * them takes the busiest page on the site down to no catalogue queries
+         * at all on a warm cache, which on a weak mobile signal is time before
+         * the first byte moves.
+         */
+        $cache = app(CatalogueCache::class);
+
         return Inertia::render('Catalogue/Home', [
-            'featuredCategories' => $this->featuredCategories(),
-            'newestProducts' => ProductCard::collection(
+            'featuredCategories' => $cache->featuredTree(fn (): array => $this->featuredCategories()),
+            'newestProducts' => $cache->homeListings(fn (): array => ProductCard::collection(
                 Product::query()
                     ->visible()
                     ->with(['images', 'seller', 'category', 'priceTiers'])
                     ->orderByDesc('published_at')
                     ->limit(12)
                     ->get(),
-            ),
+            )),
         ]);
     }
 
