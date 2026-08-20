@@ -6,11 +6,13 @@ use App\Enums\LedgerState;
 use App\Enums\LedgerType;
 use App\Enums\OrderStatus;
 use App\Enums\SubOrderStatus;
+use App\Models\Consultation;
 use App\Models\Enrolment;
 use App\Models\MentorshipInvoice;
 use App\Models\Order;
 use App\Models\ProductVariant;
 use App\Models\SubOrder;
+use App\Services\Consultations\ConsultationService;
 use App\Services\Mentorship\EngagementService;
 use App\Services\Settlement\SettlementManager;
 use App\Services\Wallet\WalletService;
@@ -33,6 +35,7 @@ class PaymentProcessor
         private readonly SettlementManager $settlement,
         private readonly WalletService $wallet,
         private readonly EngagementService $engagements,
+        private readonly ConsultationService $consultations,
     ) {}
 
     /**
@@ -125,6 +128,10 @@ class PaymentProcessor
             // holding the money — is what "paid" means there.
             $this->openMentorship($locked);
 
+            // Nor a consultation, where "paid" means the company can get on
+            // with the work it already quoted for.
+            $this->openConsultations($locked);
+
             return true;
         });
     }
@@ -186,6 +193,39 @@ class PaymentProcessor
             // Idempotent inside: a redelivered webhook writes one set of
             // entries and activates nothing twice.
             $this->engagements->markInvoicePaid($invoice, $order);
+        }
+    }
+
+    /**
+     * Settle any consultation this order paid for.
+     *
+     * Like a course and unlike a mentorship: the company did the work itself,
+     * so the whole amount is the platform's and it is released rather than
+     * held. There is nobody to hold it from.
+     */
+    private function openConsultations(Order $order): void
+    {
+        $consultations = Consultation::query()->where('order_id', $order->getKey())->get();
+
+        foreach ($consultations as $consultation) {
+            // Idempotent inside: a redelivered webhook settles this once.
+            if (! $this->consultations->markPaid($consultation, $order->reference)) {
+                continue;
+            }
+
+            $this->wallet->record(
+                user: null,
+                type: LedgerType::ConsultationFee,
+                amountKobo: $consultation->quoted_amount_kobo ?? $order->grand_total_kobo,
+                state: LedgerState::Released,
+                description: __('Consultation :reference', ['reference' => $consultation->reference]),
+                meta: [
+                    'consultation_id' => $consultation->getKey(),
+                    'consultation_reference' => $consultation->reference,
+                    'order_reference' => $order->reference,
+                    'tier' => $consultation->tier->value,
+                ],
+            );
         }
     }
 

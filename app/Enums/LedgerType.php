@@ -36,6 +36,16 @@ enum LedgerType: string
     case CourseSale = 'course_sale';
 
     /**
+     * A consultation the company was paid for directly.
+     *
+     * Same reasoning as a course sale: the company did the work, there is
+     * nobody to split with, and nothing is held. Kept apart from CourseSale
+     * because "how much did training earn" and "how much did advice earn" are
+     * two questions the business will want answered separately.
+     */
+    case ConsultationFee = 'consultation_fee';
+
+    /**
      * @return array<int, string>
      */
     public static function values(): array
@@ -54,6 +64,7 @@ enum LedgerType: string
             self::MentorshipEarning => __('Mentorship'),
             self::Reversal => __('Reversal'),
             self::CourseSale => __('Course sale'),
+            self::ConsultationFee => __('Consultation'),
         };
     }
 

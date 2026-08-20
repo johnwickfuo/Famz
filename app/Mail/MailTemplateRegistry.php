@@ -2,8 +2,12 @@
 
 namespace App\Mail;
 
+use App\Enums\ConsultationStatus;
+use App\Enums\ConsultationTier;
 use App\Enums\UserStatus;
 use App\Models\BuyerRequest;
+use App\Models\Consultation;
+use App\Models\ConsultationReport;
 use App\Models\Offer;
 use App\Models\Product;
 use App\Models\User;
@@ -71,6 +75,27 @@ class MailTemplateRegistry
                 'description' => __('Admin-authored. Carries an unsubscribe link; {company} placeholders are expanded.'),
                 'transactional' => false,
             ],
+            [
+                'key' => 'consultation-booked',
+                'class' => ConsultationBookedMail::class,
+                'name' => __('Consultation booked'),
+                'description' => __('Sent the moment somebody books a consultation, with their reference and the response promise.'),
+                'transactional' => true,
+            ],
+            [
+                'key' => 'consultation-quoted',
+                'class' => ConsultationQuotedMail::class,
+                'name' => __('Consultation quoted'),
+                'description' => __('Sent when an administrator sets a price, carrying the link to pay.'),
+                'transactional' => true,
+            ],
+            [
+                'key' => 'consultation-report',
+                'class' => ConsultationReportReadyMail::class,
+                'name' => __('Consultation report ready'),
+                'description' => __('Sent when a report is published to the client.'),
+                'transactional' => true,
+            ],
         ];
     }
 
@@ -110,6 +135,23 @@ class MailTemplateRegistry
                 __('Brooder management for day-old chicks'),
                 'CERT-'.Str::upper(Str::random(8)),
             ),
+            ConsultationBookedMail::class => new ConsultationBookedMail($this->sampleConsultation($user)),
+            ConsultationQuotedMail::class => new ConsultationQuotedMail(
+                $this->sampleConsultation($user, quoted: true),
+            ),
+            ConsultationReportReadyMail::class => (function () use ($user): ConsultationReportReadyMail {
+                $consultation = $this->sampleConsultation($user, quoted: true);
+
+                $report = new ConsultationReport;
+                $report->forceFill([
+                    'consultation_id' => $consultation->id,
+                    'title' => __('Brooder losses: findings and what to change'),
+                    'findings' => __('Placeholder findings for the preview.'),
+                    'recommendations' => __('Placeholder recommendations for the preview.'),
+                ]);
+
+                return new ConsultationReportReadyMail($consultation, $report);
+            })(),
             PlatformAnnouncementMail::class => new PlatformAnnouncementMail(
                 __('A note from {company}'),
                 __("This is a preview of how an announcement from {company} looks.\n\nAnything an administrator writes here is sent with the platform's own branding, and {company_short} is filled in from the settings screen."),
@@ -117,6 +159,36 @@ class MailTemplateRegistry
             ),
             default => null,
         };
+    }
+
+    /**
+     * A consultation that exists only for the duration of a preview.
+     *
+     * Never saved: `forceFill` on an unsaved model, exactly like the sample
+     * offer above, so previewing a template does not put a fake booking into
+     * somebody's queue.
+     */
+    private function sampleConsultation(User $user, bool $quoted = false): Consultation
+    {
+        $consultation = new Consultation;
+
+        $consultation->forceFill([
+            'id' => 0,
+            'reference' => 'CON-'.now()->format('ymd').'-'.Str::upper(Str::random(6)),
+            'full_name' => $user->displayName(),
+            'phone' => $user->profile?->phone ?? '0803 000 0000',
+            'email' => $user->email,
+            'tier' => ConsultationTier::Urgent,
+            'status' => $quoted ? ConsultationStatus::Quoted : ConsultationStatus::Submitted,
+            'situation' => __('Losing about ten birds a day in a 2,000 layer house.'),
+            'response_due_at' => now()->addHours(6),
+            'quoted_amount_kobo' => $quoted ? 3_500_000 : null,
+            'quoted_at' => $quoted ? now() : null,
+            'quote_note' => $quoted ? __('Includes a farm visit and a written report.') : null,
+            'created_at' => now(),
+        ]);
+
+        return $consultation;
     }
 
     /**
