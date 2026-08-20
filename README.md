@@ -610,6 +610,112 @@ them at the email, rather than at a box that is not there.
 
 Book one at `/consult` and work it from `/admin/consultations`.
 
+## Farm setup quotations
+
+Somebody asking what it would cost to build a farm, and being handed a costed
+proposal they can take to a bank.
+
+Quotes are **written by hand**. There is no pricing engine and there is not
+meant to be one: what it costs to put up a 20,000-bird layer house in Oyo
+depends on the site, the season, who is supplying the galvanised sheet and what
+the client already owns. A formula would produce numbers nobody in the company
+could stand behind on the phone.
+
+### The study fee is the gate
+
+This is the whole economics of the module. Preparing a proposal is days of
+costing work against one particular site, and doing that for everybody who fills
+in a form is how the service stops being offered. So a request is an **enquiry**
+until the fee clears, and paid work afterwards:
+
+```
+submitted → study_fee_pending → study_fee_paid → in_preparation → quote_sent
+                    ▲                    ▲
+              raised on submit      the gate: nothing is written before this
+```
+
+`quotation_study_fee` is a setting, and the amount is **copied onto the fee row**
+when it is raised — putting the price up next quarter must not rewrite what
+somebody paid last quarter. Payment runs through the Phase 3 gateway layer; the
+whole amount is the platform's, released rather than held, on its own ledger
+type so "how many paid studies became projects" stays an answerable question.
+
+The admin work queue, the navigation badge, the "to write" tab and the row tint
+are all the same predicate — fee cleared, proposal not yet sent. A request whose
+proposal has gone out is not outstanding work however much was paid for it.
+
+### The fee's paper trail
+
+`quotation_study_fees` is a table rather than three columns on the request,
+because the row outlives the workflow. Long after everything is closed somebody
+will ask whether that fee was credited against the project, and the only
+defensible answer has a name, a date and a reason on it.
+
+| Status | Means |
+|---|---|
+| `uncredited` | Paid for the study, and the study is what it bought |
+| `credited` | The client signed; it came off their first invoice |
+| `expired` | They did not go ahead in time, so the fee stands |
+| `refunded` | Given back — the only line that actually left the business |
+
+Every transition except `uncredited` **requires a note**, and all of them record
+the acting administrator. Leaving a fee uncredited needs no explanation; deciding
+to move money does. The credit control sits in the record page's header rather
+than inside a table, because it is the one action on that screen whose absence
+causes an argument. `/admin/study-fees` reports collected against credited and
+lists the paid fees nobody has decided about yet.
+
+### A sent proposal is immutable
+
+Cement, roofing sheet, feed and day-old stock move fast enough here that a
+document a client is holding — and may have taken to a lender — has to keep
+saying exactly what it said. So a revision is a **new row at the next version
+number**, and the previous one becomes `superseded`:
+
+- The previous version stays **live until the revision is actually sent**. A
+  client must not be left holding a proposal marked "replaced" by something that
+  does not exist yet.
+- Only one draft is open at a time. Two people writing two drafts against one
+  request is not a version history, it is a mistake waiting to be sent.
+- Totals are written down rather than summed on read, and a line item recomputes
+  its own total on every save, so a stored figure can never drift from the
+  quantity and price beside it.
+- The client sees the whole version history and never a draft.
+
+### The document
+
+Rendered at send time and **stored**, so a copy downloaded in December is the
+same bytes as one downloaded in March. Letterhead, reference, client details,
+grouped line items with section subtotals, contingency, totals, assumptions,
+exclusions, timeline, payment terms, validity and a contact block.
+
+Company identity comes from `BrandingService` — except the **name**, which is
+frozen onto the quotation when it is sent. Reissuing March's proposal must
+produce March's proposal, not one wearing this quarter's name. Contact details
+stay live, because a stale phone number on a reissued proposal helps nobody.
+
+Unlike course material this document is downloadable and unwatermarked. The whole
+reason somebody pays a study fee is to come away with something they can print,
+email to a partner and show to a bank; locking it down would defeat the product.
+
+### Lapsing
+
+`valid_until` is set from the send date and `quote_validity_days` (30).
+`quotations:expire` runs daily at 07:00, marks anything past its date, and tells
+**both sides** — the client before they ring up quoting a withdrawn price, and
+the company because a lapsed proposal is a warm lead going cold. A request
+already won or lost keeps its outcome: a signed project does not lapse because
+its paperwork did.
+
+### Acceptance is offline, by design
+
+There is no accept-and-pay button and no project tracking after delivery.
+Committing to a farm build is a conversation and a contract, and a button would
+misrepresent what happens next — somebody would think they had ordered a farm.
+The client's page offers the proposal, the PDF, the validity countdown and a
+phone number. An administrator can mark a request won or lost **for reporting
+only**.
+
 ## Roles
 
 One `users` table. A user may hold any number of roles at once — they are
