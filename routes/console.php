@@ -26,3 +26,13 @@ Schedule::command('offers:sweep')->hourly()->withoutOverlapping();
  * they get rather than up to eight.
  */
 Schedule::command('mentorship:sweep')->hourly()->withoutOverlapping();
+
+/*
+ * Farm setup proposals lapsing.
+ *
+ * Daily rather than hourly, because validity is measured in days: a proposal
+ * valid until the 30th is valid all of the 30th, and there is nothing to gain
+ * from telling somebody at 01:00 on the 31st rather than at 07:00. Early, so
+ * the notice is in the client's inbox before the working day starts.
+ */
+Schedule::command('quotations:expire')->dailyAt('07:00')->withoutOverlapping();

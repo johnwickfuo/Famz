@@ -4,13 +4,21 @@ namespace App\Mail;
 
 use App\Enums\ConsultationStatus;
 use App\Enums\ConsultationTier;
+use App\Enums\QuotationProjectType;
+use App\Enums\QuotationRequestStatus;
+use App\Enums\QuotationScope;
+use App\Enums\QuotationStatus;
 use App\Enums\UserStatus;
 use App\Models\BuyerRequest;
 use App\Models\Consultation;
 use App\Models\ConsultationReport;
 use App\Models\Offer;
 use App\Models\Product;
+use App\Models\Quotation;
+use App\Models\QuotationRequest;
+use App\Models\QuotationStudyFee;
 use App\Models\User;
+use App\Services\Quotations\StudyFeeService;
 use Illuminate\Support\Str;
 
 /**
@@ -96,6 +104,27 @@ class MailTemplateRegistry
                 'description' => __('Sent when a report is published to the client.'),
                 'transactional' => true,
             ],
+            [
+                'key' => 'quotation-study-fee-due',
+                'class' => QuotationStudyFeeDueMail::class,
+                'name' => __('Study fee due'),
+                'description' => __('Sent when somebody asks for a farm setup quotation, carrying the link to pay the study fee.'),
+                'transactional' => true,
+            ],
+            [
+                'key' => 'quotation-sent',
+                'class' => QuotationSentMail::class,
+                'name' => __('Proposal sent'),
+                'description' => __('Sent when a farm setup proposal is delivered to the client.'),
+                'transactional' => true,
+            ],
+            [
+                'key' => 'quotation-expired',
+                'class' => QuotationExpiredMail::class,
+                'name' => __('Proposal lapsed'),
+                'description' => __('Sent to the client and to the company when a proposal passes its validity date.'),
+                'transactional' => true,
+            ],
         ];
     }
 
@@ -152,6 +181,9 @@ class MailTemplateRegistry
 
                 return new ConsultationReportReadyMail($consultation, $report);
             })(),
+            QuotationStudyFeeDueMail::class => new QuotationStudyFeeDueMail($this->sampleQuotationRequest($user)),
+            QuotationSentMail::class => new QuotationSentMail($this->sampleQuotation($user)),
+            QuotationExpiredMail::class => new QuotationExpiredMail($this->sampleQuotation($user, lapsed: true)),
             PlatformAnnouncementMail::class => new PlatformAnnouncementMail(
                 __('A note from {company}'),
                 __("This is a preview of how an announcement from {company} looks.\n\nAnything an administrator writes here is sent with the platform's own branding, and {company_short} is filled in from the settings screen."),
@@ -168,6 +200,75 @@ class MailTemplateRegistry
      * offer above, so previewing a template does not put a fake booking into
      * somebody's queue.
      */
+    private function sampleQuotationRequest(User $user): QuotationRequest
+    {
+        $request = new QuotationRequest;
+
+        $request->forceFill([
+            'id' => 0,
+            'reference' => 'QR-'.now()->format('ymd').'-'.Str::upper(Str::random(6)),
+            'user_id' => $user->getKey(),
+            'project_type' => QuotationProjectType::NewBuild,
+            'farm_type' => __('Layer poultry'),
+            'target_capacity' => 20000,
+            'capacity_unit' => __('birds'),
+            'owns_land' => true,
+            'land_size' => 3,
+            'land_unit' => __('hectares'),
+            'state' => 'Oyo',
+            'lga' => 'Akinyele',
+            'scope_wanted' => [
+                QuotationScope::Construction->value,
+                QuotationScope::EquipmentSupply->value,
+                QuotationScope::Stocking->value,
+            ],
+            'status' => QuotationRequestStatus::StudyFeePending,
+            'created_at' => now(),
+        ]);
+
+        $fee = new QuotationStudyFee;
+        $fee->forceFill([
+            'id' => 0,
+            'quotation_request_id' => 0,
+            'amount_kobo' => app(StudyFeeService::class)->currentAmountKobo(),
+        ]);
+
+        // Set on the relation rather than saved, so the preview renders without
+        // writing anything.
+        $request->setRelation('studyFee', $fee);
+        $request->setRelation('user', $user);
+
+        return $request;
+    }
+
+    private function sampleQuotation(User $user, bool $lapsed = false): Quotation
+    {
+        $request = $this->sampleQuotationRequest($user);
+
+        $quotation = new Quotation;
+
+        $quotation->forceFill([
+            'id' => 0,
+            'quotation_request_id' => 0,
+            'version' => $lapsed ? 1 : 2,
+            'title' => __('20,000-bird layer farm — Akinyele, Oyo'),
+            // Kobo. A 20,000-bird layer build lands around here in practice,
+            // and a preview with a plausible number is worth more than one
+            // with a round one.
+            'subtotal_kobo' => 4_850_000_000,
+            'contingency_percent' => 10,
+            'contingency_kobo' => 485_000_000,
+            'total_kobo' => 5_335_000_000,
+            'status' => $lapsed ? QuotationStatus::Expired : QuotationStatus::Sent,
+            'sent_at' => $lapsed ? now()->subDays(45) : now(),
+            'valid_until' => $lapsed ? now()->subDays(15) : now()->addDays(30),
+        ]);
+
+        $quotation->setRelation('request', $request);
+
+        return $quotation;
+    }
+
     private function sampleConsultation(User $user, bool $quoted = false): Consultation
     {
         $consultation = new Consultation;
