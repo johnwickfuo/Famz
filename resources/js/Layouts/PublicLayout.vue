@@ -24,6 +24,7 @@ const nav = [
     { label: 'Training', href: route('academy.home') },
     { label: 'Mentors', href: route('mentors.find') },
     { label: 'Ask us', href: route('consultations.create') },
+    { label: 'Farm setup', href: route('quotations.create') },
     { label: 'Farm jobs', href: route('sections.show', 'jobs') },
 ];
 
@@ -173,7 +174,12 @@ const year = new Date().getFullYear();
                 :class="menuOpen ? 'block' : 'hidden lg:block'"
                 aria-label="Primary"
             >
-                <ul class="flex flex-col gap-1 py-2 lg:flex-row lg:items-center lg:gap-6">
+                <!--
+                    flex-wrap with nowrap links: as the bar fills up, whole
+                    entries move to a second row rather than "Farm setup"
+                    breaking across two lines mid-name.
+                -->
+                <ul class="flex flex-col gap-1 py-2 lg:flex-row lg:flex-wrap lg:items-center lg:gap-x-6 lg:gap-y-1 [&_a]:lg:whitespace-nowrap">
                     <li v-for="item in nav" :key="item.label">
                         <Link
                             :href="item.href"

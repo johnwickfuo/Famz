@@ -22,6 +22,7 @@ use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PublicPageController;
+use App\Http\Controllers\Quotations\QuotationController;
 use App\Http\Controllers\SellerApplicationController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -224,6 +225,22 @@ Route::middleware('auth')->group(function () {
     Route::get('/consultations', [ConsultationController::class, 'index'])->name('consultations.index');
     Route::post('/consultations/{consultation}/pay', [ConsultationController::class, 'pay'])
         ->name('consultations.pay');
+
+    /*
+     * Farm setup quotations. Every route here is behind auth, unlike a
+     * consultation: a study fee has to be paid before anything happens, and
+     * paying means somebody the company can identify and come back to months
+     * later.
+     */
+    Route::get('/farm-setup', [QuotationController::class, 'create'])->name('quotations.create');
+    Route::post('/farm-setup', [QuotationController::class, 'store'])->name('quotations.store');
+    Route::get('/farm-setup/requests', [QuotationController::class, 'index'])->name('quotations.index');
+    Route::get('/farm-setup/{quotationRequest}', [QuotationController::class, 'show'])->name('quotations.show');
+    Route::post('/farm-setup/{quotationRequest}/study-fee', [QuotationController::class, 'payStudyFee'])
+        ->name('quotations.studyFee');
+    Route::get('/farm-setup/{quotationRequest}/proposal/v{version}.pdf', [QuotationController::class, 'proposal'])
+        ->whereNumber('version')
+        ->name('quotations.proposal');
 
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
     Route::get('/notifications/{notification}', [NotificationController::class, 'read'])
