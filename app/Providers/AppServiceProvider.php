@@ -22,7 +22,10 @@ use App\Policies\ProductPolicy;
 use App\Policies\SellerProfilePolicy;
 use App\Policies\SubOrderPolicy;
 use App\Policies\WorkerProfilePolicy;
+use App\Services\Ai\AiProvider;
+use App\Services\Ai\GeminiProvider;
 use App\Services\Ai\GeminiTagResolver;
+use App\Services\Ai\NullAiProvider;
 use App\Services\Ai\NullTagResolver;
 use App\Services\Ai\TagResolver;
 use Illuminate\Support\Facades\Gate;
@@ -46,6 +49,18 @@ class AppServiceProvider extends ServiceProvider
             $gemini = new GeminiTagResolver;
 
             return $gemini->isConfigured() ? $gemini : new NullTagResolver;
+        });
+
+        /*
+         * The conversational provider, chosen the same way and for the same
+         * reason. NullAiProvider is not a test double — it is what a
+         * deployment with no API key actually runs, and the assistant degrades
+         * to an honest "I cannot answer right now" rather than a 500.
+         */
+        $this->app->singleton(AiProvider::class, function (): AiProvider {
+            $gemini = new GeminiProvider;
+
+            return $gemini->isConfigured() ? $gemini : new NullAiProvider;
         });
     }
 

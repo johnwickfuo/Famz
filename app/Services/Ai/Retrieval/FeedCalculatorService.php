@@ -91,7 +91,14 @@ class FeedCalculatorService
                 'read_from_week' => $row->week_number,
             ];
 
-            $sources[$row->citation()] = true;
+            /*
+             * Keyed on the publication, not the row. Citing "the Aviagen guide,
+             * week 1; the Aviagen guide, week 2; ..." six times over is six
+             * times the prompt budget for one fact, and it reads to the model
+             * as six sources rather than one. Which row a figure was read off
+             * already travels on the week itself, where it is actually useful.
+             */
+            $sources[$row->source ?: __('platform reference table')] = true;
         }
 
         if ($covered === 0) {
@@ -172,6 +179,36 @@ class FeedCalculatorService
             'water_litres_per_day' => $standard->water_litres_per_day,
             'notes' => $standard->notes,
             'source' => $standard->citation(),
+        ];
+    }
+
+    /**
+     * What a breed's table actually covers.
+     *
+     * The assembler needs this before it can decide what to do with a question
+     * that names no weeks. "How much feed for 500 broilers" means the whole
+     * cycle, and the whole cycle is whatever the table says it is — eight weeks
+     * for a Ross, twelve for a Noiler. Hard-coding that here would put a figure
+     * in two places and let them drift.
+     *
+     * @return array{species: string, breed: string, production_type: string, first_week: int, last_week: int}|null
+     */
+    public function coverageFor(string $breed, ?string $productionType = null): ?array
+    {
+        $rows = $this->rowsFor($breed, $productionType);
+
+        if ($rows->isEmpty()) {
+            return null;
+        }
+
+        $first = $rows->first();
+
+        return [
+            'species' => $first->species,
+            'breed' => $first->breed,
+            'production_type' => $first->production_type,
+            'first_week' => (int) $rows->min('week_number'),
+            'last_week' => (int) $rows->max('week_number'),
         ];
     }
 
