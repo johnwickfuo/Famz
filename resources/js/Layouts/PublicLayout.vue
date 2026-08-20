@@ -25,7 +25,7 @@ const nav = [
     { label: 'Mentors', href: route('mentors.find') },
     { label: 'Ask us', href: route('consultations.create') },
     { label: 'Farm setup', href: route('quotations.create') },
-    { label: 'Farm jobs', href: route('sections.show', 'jobs') },
+    { label: 'Farm jobs', href: route('jobs.index') },
 ];
 
 function submitSearch() {

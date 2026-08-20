@@ -36,3 +36,12 @@ Schedule::command('mentorship:sweep')->hourly()->withoutOverlapping();
  * the notice is in the client's inbox before the working day starts.
  */
 Schedule::command('quotations:expire')->dailyAt('07:00')->withoutOverlapping();
+
+/*
+ * Job listings closing on the deadline their employer set.
+ *
+ * Daily and early: a deadline of the 30th means the 30th, and a worker
+ * checking the board over breakfast should not see a job that shut at
+ * midnight.
+ */
+Schedule::command('jobs:expire')->dailyAt('06:00')->withoutOverlapping();

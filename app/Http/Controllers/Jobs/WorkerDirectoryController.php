@@ -14,6 +14,7 @@ use App\Services\Jobs\JobMatcher;
 use App\Services\Jobs\WorkerContactGuard;
 use App\Support\Nigeria;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -41,7 +42,7 @@ class WorkerDirectoryController extends Controller
      */
     public function index(Request $request): Response
     {
-        $this->authorize('viewAny', WorkerProfile::class);
+        Gate::authorize('viewAny', WorkerProfile::class);
 
         $filters = $request->validate([
             'state' => ['nullable', 'string', 'max:64'],
@@ -116,7 +117,7 @@ class WorkerDirectoryController extends Controller
      */
     public function show(Request $request, WorkerProfile $worker): Response
     {
-        $this->authorize('view', $worker);
+        Gate::authorize('view', $worker);
 
         $worker->load('skills');
 

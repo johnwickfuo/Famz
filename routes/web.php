@@ -12,7 +12,11 @@ use App\Http\Controllers\CatalogueController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\Consultations\ConsultationController;
 use App\Http\Controllers\DisputeController;
+use App\Http\Controllers\Jobs\EmployerController;
+use App\Http\Controllers\Jobs\JobApplicationController;
 use App\Http\Controllers\Jobs\JobBoardController;
+use App\Http\Controllers\Jobs\JobRatingController;
+use App\Http\Controllers\Jobs\WorkerProfileController;
 use App\Http\Controllers\Jobs\WorkerDirectoryController;
 use App\Http\Controllers\Mentorship\EngagementController;
 use App\Http\Controllers\Mentorship\MentorDirectoryController;
@@ -260,6 +264,38 @@ Route::middleware('auth')->group(function () {
      * phone number is released by WorkerContactGuard or not at all.
      */
     Route::get('/jobs/workers', [WorkerDirectoryController::class, 'index'])->name('jobs.workers.index');
+
+    // A worker setting themselves up and seeing where their applications got.
+    Route::get('/jobs/my-profile', [WorkerProfileController::class, 'edit'])->name('jobs.worker.edit');
+    Route::post('/jobs/my-profile', [WorkerProfileController::class, 'save'])->name('jobs.worker.save');
+    Route::get('/jobs/my-applications', [WorkerProfileController::class, 'dashboard'])->name('jobs.worker.dashboard');
+
+    // An employer setting themselves up, posting work and reading applicants.
+    Route::get('/jobs/hiring/profile', [EmployerController::class, 'edit'])->name('jobs.employer.edit');
+    Route::post('/jobs/hiring/profile', [EmployerController::class, 'save'])->name('jobs.employer.save');
+    Route::get('/jobs/hiring', [EmployerController::class, 'dashboard'])->name('jobs.employer.dashboard');
+    Route::get('/jobs/hiring/post', [EmployerController::class, 'editListing'])->name('jobs.listings.create');
+    Route::post('/jobs/hiring/post', [EmployerController::class, 'saveListing'])->name('jobs.listings.store');
+    Route::get('/jobs/hiring/{listing}/edit', [EmployerController::class, 'editListing'])->name('jobs.listings.edit');
+    Route::post('/jobs/hiring/{listing}/edit', [EmployerController::class, 'saveListing'])->name('jobs.listings.update');
+    Route::post('/jobs/hiring/{listing}/close', [EmployerController::class, 'closeListing'])->name('jobs.listings.close');
+    Route::get('/jobs/hiring/{listing}/applicants', [JobApplicationController::class, 'index'])->name('jobs.applicants');
+
+    // Applying, withdrawing, and moving somebody along.
+    Route::post('/jobs/{listing}/apply', [JobApplicationController::class, 'store'])->name('jobs.apply');
+    Route::post('/jobs/applications/{application}/withdraw', [JobApplicationController::class, 'withdraw'])
+        ->name('jobs.applications.withdraw');
+    Route::post('/jobs/applications/{application}/status', [JobApplicationController::class, 'updateStatus'])
+        ->name('jobs.applications.status');
+
+    // Rating, which the policy allows only on a hire.
+    Route::post('/jobs/applications/{application}/rate', [JobRatingController::class, 'store'])
+        ->name('jobs.applications.rate');
+
+    /*
+     * The worker slug route comes last inside this group, so every literal
+     * /jobs/... path above wins over it.
+     */
     Route::get('/jobs/workers/{worker}', [WorkerDirectoryController::class, 'show'])->name('jobs.workers.show');
 
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
