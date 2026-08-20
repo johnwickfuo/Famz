@@ -8,7 +8,8 @@ import Textarea from '@/Components/Ui/Textarea.vue';
 
 const props = defineProps({
     dispute: { type: Object, required: true },
-    subOrder: { type: Object, required: true },
+    /** The thing being argued about: an order part, or a mentorship engagement. */
+    subject: { type: Object, required: true },
     messages: { type: Array, default: () => [] },
     canReply: { type: Boolean, default: false },
 });
@@ -33,13 +34,13 @@ function send() {
 </script>
 
 <template>
-    <PublicLayout :title="`Dispute — ${subOrder.reference}`">
+    <PublicLayout :title="`Dispute — ${subject.reference}`">
         <div class="mx-auto max-w-3xl">
             <div class="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
                 <div class="min-w-0">
                     <h1 class="text-2xl sm:text-3xl">{{ dispute.reason }}</h1>
                     <p class="mt-1 text-sm text-muted">
-                        {{ subOrder.seller }} · <span class="figures">{{ subOrder.reference }}</span> · raised
+                        {{ subject.other_party }} · <span class="figures">{{ subject.reference }}</span> · raised
                         {{ dispute.raised_at }}
                     </p>
                 </div>

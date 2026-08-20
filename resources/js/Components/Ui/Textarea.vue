@@ -3,6 +3,10 @@ import { computed } from 'vue';
 import { useId } from '@/Composables/useId';
 import FieldShell from './FieldShell.vue';
 
+// Attributes are forwarded to the <textarea> below by hand; without this
+// they would land on the wrapper as well.
+defineOptions({ inheritAttrs: false });
+
 const props = defineProps({
     modelValue: { type: String, default: '' },
     label: { type: String, default: null },

@@ -40,7 +40,7 @@ class PlatformFinances
     {
         return (int) WalletTransaction::query()
             ->platform()
-            ->where('type', LedgerType::Commission)
+            ->whereIn('type', [LedgerType::Commission, LedgerType::Reversal])
             ->where('state', LedgerState::Held)
             ->sum('amount_kobo');
     }
@@ -186,11 +186,18 @@ class PlatformFinances
         ];
     }
 
+    /**
+     * Commission, net of clawbacks.
+     *
+     * Reversal rows on the platform's own account are always commission being
+     * given back on a dispute, and they are negative — so including them is
+     * what makes this revenue rather than gross billings.
+     */
     private function commissionQuery(?Carbon $from, ?Carbon $until)
     {
         return WalletTransaction::query()
             ->platform()
-            ->where('type', LedgerType::Commission)
+            ->whereIn('type', [LedgerType::Commission, LedgerType::Reversal])
             ->when($from, fn ($q, $date) => $q->where('created_at', '>=', $date))
             ->when($until, fn ($q, $date) => $q->where('created_at', '<=', $date));
     }

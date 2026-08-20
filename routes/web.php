@@ -11,6 +11,8 @@ use App\Http\Controllers\CartController;
 use App\Http\Controllers\CatalogueController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\DisputeController;
+use App\Http\Controllers\Mentorship\EngagementController;
+use App\Http\Controllers\Mentorship\MentorDirectoryController;
 use App\Http\Controllers\Mentorship\MentorRegistrationController;
 use App\Http\Controllers\NegotiatedPurchaseController;
 use App\Http\Controllers\NotificationController;
@@ -41,6 +43,16 @@ Route::get('/requests', [BuyerRequestController::class, 'index'])->name('request
  */
 Route::get('/academy', [AcademyController::class, 'home'])->name('academy.home');
 Route::get('/academy/courses', [AcademyController::class, 'catalogue'])->name('academy.catalogue');
+
+/*
+ * Finding a mentor. Public: somebody should be able to see who is here and
+ * what they charge before signing up. What they cannot see, at any point on
+ * these pages, is how to reach anybody — that arrives with a paid engagement.
+ */
+Route::get('/mentors', [MentorDirectoryController::class, 'create'])->name('mentors.find');
+Route::post('/mentors/match', [MentorDirectoryController::class, 'match'])->name('mentors.match');
+Route::get('/mentors/shortlist/{match}', [MentorDirectoryController::class, 'shortlist'])
+    ->name('mentors.shortlist');
 
 /*
  * Becoming a mentor. Invitation only, and deliberately not in any navigation:
@@ -183,6 +195,22 @@ Route::middleware('auth')->group(function () {
     Route::get('/mentors/pending', [MentorRegistrationController::class, 'pending'])
         ->name('mentors.pending');
 
+    /*
+     * Engagements. Hiring, paying, confirming and — only once one of those has
+     * happened — seeing who you hired.
+     */
+    Route::get('/mentorship', [EngagementController::class, 'index'])->name('mentorship.index');
+    Route::post('/mentorship/packages/{package}', [EngagementController::class, 'store'])
+        ->name('mentorship.store');
+    Route::get('/mentorship/{engagement}', [EngagementController::class, 'show'])->name('mentorship.show');
+    Route::post('/mentorship/{engagement}/pay', [EngagementController::class, 'pay'])->name('mentorship.pay');
+    Route::post('/mentorship/{engagement}/confirm', [EngagementController::class, 'confirm'])
+        ->name('mentorship.confirm');
+    Route::post('/mentorship/{engagement}/review', [EngagementController::class, 'review'])
+        ->name('mentorship.review');
+    Route::post('/mentorship/{engagement}/dispute', [EngagementController::class, 'dispute'])
+        ->name('mentorship.dispute');
+
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
     Route::get('/notifications/{notification}', [NotificationController::class, 'read'])
         ->name('notifications.read');
@@ -211,3 +239,9 @@ Route::get('/requests/{buyerRequest}', [BuyerRequestController::class, 'show'])-
  * swallow /academy/courses and every other literal path under /academy.
  */
 Route::get('/academy/{course}', [AcademyController::class, 'show'])->name('academy.course');
+
+/*
+ * Same reason again: declared earlier this would swallow /mentors/join,
+ * /mentors/shortlist and /mentors/pending.
+ */
+Route::get('/mentors/{mentor}', [MentorDirectoryController::class, 'show'])->name('mentors.show');

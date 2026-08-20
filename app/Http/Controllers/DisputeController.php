@@ -55,7 +55,9 @@ class DisputeController extends Controller
                     'quantity' => $item->quantity,
                 ])->all(),
             ],
-            'reasons' => collect(DisputeReason::cases())
+            // The marketplace half of the list. A buyer complaining about an
+            // order has no use for "the sessions did not happen".
+            'reasons' => collect(DisputeReason::marketplaceCases())
                 ->map(fn (DisputeReason $reason): array => [
                     'value' => $reason->value,
                     'label' => $reason->label(),
@@ -69,7 +71,7 @@ class DisputeController extends Controller
         Gate::authorize('raiseDispute', $subOrder);
 
         $validated = $request->validate([
-            'reason' => ['required', Rule::enum(DisputeReason::class)],
+            'reason' => ['required', Rule::in(array_column(DisputeReason::marketplaceCases(), 'value'))],
             'description' => ['required', 'string', 'min:15', 'max:2000'],
             'evidence' => ['nullable', 'array', 'max:6'],
             'evidence.*' => ['image', 'max:5120'],
@@ -100,17 +102,29 @@ class DisputeController extends Controller
 
     public function index(Request $request): Response
     {
+        $userId = $request->user()->id;
+
+        // Both kinds: an order they bought, or an engagement they are a party
+        // to on either side. One list, because from the person's point of view
+        // there is one thing here — a complaint they are waiting on.
         $disputes = Dispute::query()
-            ->whereHas('subOrder.order', fn ($query) => $query->where('user_id', $request->user()->id))
-            ->with(['subOrder.seller'])
+            ->where(fn ($query) => $query
+                ->whereHas('subOrder.order', fn ($sub) => $sub->where('user_id', $userId))
+                ->orWhereHas('engagement', fn ($engagement) => $engagement
+                    ->where('client_id', $userId)
+                    ->orWhereHas('mentor', fn ($mentor) => $mentor->where('user_id', $userId))))
+            ->with(['subOrder.seller', 'engagement.mentor.user'])
             ->latest()
             ->paginate(15);
 
         return Inertia::render('Disputes/Index', [
             'disputes' => collect($disputes->items())->map(fn (Dispute $dispute): array => [
                 'id' => $dispute->id,
-                'reference' => $dispute->subOrder->reference,
-                'seller' => $dispute->subOrder->seller->business_name,
+                'reference' => $dispute->subjectReference(),
+                'seller' => $dispute->isMentorship()
+                    ? $dispute->engagement?->mentor?->displayName()
+                    : $dispute->subOrder->seller->business_name,
+                'kind' => $dispute->isMentorship() ? 'mentorship' : 'marketplace',
                 'reason' => $dispute->reason->label(),
                 'status' => $dispute->status->value,
                 'status_label' => $dispute->status->label(),
@@ -133,7 +147,11 @@ class DisputeController extends Controller
     {
         Gate::authorize('view', $dispute);
 
-        $dispute->load(['subOrder.seller', 'subOrder.order', 'messages.author', 'resolver']);
+        $dispute->load([
+            'subOrder.seller', 'subOrder.order',
+            'engagement.mentor.user',
+            'messages.author', 'resolver',
+        ]);
 
         return Inertia::render('Disputes/Show', [
             'dispute' => [
@@ -152,12 +170,27 @@ class DisputeController extends Controller
                 'resolved_at' => $dispute->resolved_at?->format('j M Y'),
                 'evidence' => $dispute->evidenceUrls(),
             ],
-            'subOrder' => [
-                'reference' => $dispute->subOrder->reference,
-                'order_reference' => $dispute->subOrder->order->reference,
-                'seller' => $dispute->subOrder->seller->business_name,
-                'status_label' => $dispute->subOrder->status->label(),
-            ],
+            // One shape for both kinds, so the page has one thing to render:
+            // what is being argued about, and who the other side is.
+            'subject' => $dispute->isMentorship()
+                ? [
+                    'kind' => 'mentorship',
+                    'reference' => $dispute->engagement?->reference,
+                    'title' => $dispute->engagement?->package_title,
+                    'other_party' => $dispute->engagement?->mentor?->displayName(),
+                    'status_label' => $dispute->engagement?->status->label(),
+                    'url' => $dispute->engagement === null
+                        ? null
+                        : route('mentorship.show', $dispute->engagement),
+                ]
+                : [
+                    'kind' => 'marketplace',
+                    'reference' => $dispute->subOrder->reference,
+                    'title' => $dispute->subOrder->order->reference,
+                    'other_party' => $dispute->subOrder->seller->business_name,
+                    'status_label' => $dispute->subOrder->status->label(),
+                    'url' => route('orders.show', $dispute->subOrder->order),
+                ],
             'messages' => $dispute->messages
                 // Internal notes are the arbitrator's own; neither side sees
                 // them.

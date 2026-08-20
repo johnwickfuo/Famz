@@ -17,11 +17,6 @@ class PublicPageController extends Controller
      * @var array<string, array{title: string, empty_title: string, empty_description: string}>
      */
     private const SECTIONS = [
-        'mentors' => [
-            'title' => 'Mentors',
-            'empty_title' => 'No mentors listed yet',
-            'empty_description' => 'Experienced farmers answering questions will be listed here.',
-        ],
         'jobs' => [
             'title' => 'Farm jobs',
             'empty_title' => 'No jobs posted yet',

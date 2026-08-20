@@ -22,7 +22,7 @@ const nav = [
     { label: 'Marketplace', href: route('catalogue.home') },
     { label: 'Wanted', href: route('requests.index') },
     { label: 'Training', href: route('academy.home') },
-    { label: 'Mentors', href: route('sections.show', 'mentors') },
+    { label: 'Mentors', href: route('mentors.find') },
     { label: 'Farm jobs', href: route('sections.show', 'jobs') },
 ];
 

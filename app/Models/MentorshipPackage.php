@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * What a mentor sells.
@@ -58,6 +59,14 @@ class MentorshipPackage extends Model
     public function mentor(): BelongsTo
     {
         return $this->belongsTo(MentorProfile::class, 'mentor_profile_id');
+    }
+
+    /**
+     * @return HasMany<MentorshipEngagement, $this>
+     */
+    public function engagements(): HasMany
+    {
+        return $this->hasMany(MentorshipEngagement::class, 'mentorship_package_id');
     }
 
     public function price(): string

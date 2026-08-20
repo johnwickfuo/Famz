@@ -69,13 +69,19 @@ class WalletService
     }
 
     /**
-     * The platform's commission revenue.
+     * The platform's commission revenue, net of what it has given back.
+     *
+     * Reversals count. A dispute refund claws commission back with a negative
+     * Reversal row on the platform's account rather than by editing the
+     * original — so leaving them out would report commission the platform has
+     * already returned, and the figure would be overstated by exactly the value
+     * of every refund ever made.
      */
     public function platformEarnings(): int
     {
         return WalletTransaction::query()
             ->platform()
-            ->where('type', LedgerType::Commission)
+            ->whereIn('type', [LedgerType::Commission, LedgerType::Reversal])
             ->whereIn('state', LedgerState::spendable())
             ->sum('amount_kobo');
     }
