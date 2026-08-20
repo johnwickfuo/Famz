@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Enums\NotificationCategory;
 use App\Mail\BrandedMailable;
 use App\Mail\BuyerRequestExpiringMail;
 use App\Models\BuyerRequest;
@@ -16,6 +17,11 @@ class BuyerRequestExpiring extends PlatformNotification
     public function mailable(object $notifiable): BrandedMailable
     {
         return new BuyerRequestExpiringMail($this->buyerRequest, $this->daysLeft);
+    }
+
+    public function category(): NotificationCategory
+    {
+        return NotificationCategory::Offers;
     }
 
     /**

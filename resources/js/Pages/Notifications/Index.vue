@@ -6,11 +6,26 @@ import Button from '@/Components/Ui/Button.vue';
 import EmptyState from '@/Components/Ui/EmptyState.vue';
 import Pagination from '@/Components/Ui/Pagination.vue';
 
-defineProps({
+const props = defineProps({
     notifications: { type: Array, default: () => [] },
     pagination: { type: Object, default: () => ({ links: [], total: 0 }) },
     unread: { type: Number, default: 0 },
+    categories: { type: Array, default: () => [] },
+    filter: { type: String, default: null },
 });
+
+/**
+ * Filtering reloads rather than hiding rows client-side: the list is paginated,
+ * so a client-side filter would only ever filter the twenty rows on screen and
+ * quietly lie about the rest.
+ */
+function filterBy(category) {
+    router.get(
+        route('notifications.index'),
+        category ? { category } : {},
+        { preserveScroll: true, preserveState: true },
+    );
+}
 
 function readAll() {
     router.post(route('notifications.readAll'), {}, { preserveScroll: true });
@@ -29,6 +44,33 @@ function readAll() {
         </div>
 
         <hr class="seam my-5" />
+
+        <!--
+            Only the categories this person actually has something in. A bar
+            offering eleven filters where nine come back empty is worse than
+            no bar at all.
+        -->
+        <div v-if="categories.length > 1" class="mb-5 flex flex-wrap gap-2">
+            <button
+                type="button"
+                class="rounded-sm border-2 px-3 py-1.5 text-xs font-bold uppercase tracking-wider"
+                :class="!filter ? 'border-ink bg-chrome text-ink' : 'border-chrome text-muted hover:border-ink dark:border-grain-700'"
+                @click="filterBy(null)"
+            >
+                Everything
+            </button>
+            <button
+                v-for="category in categories"
+                :key="category.value"
+                type="button"
+                class="rounded-sm border-2 px-3 py-1.5 text-xs font-bold uppercase tracking-wider"
+                :class="filter === category.value ? 'border-ink bg-chrome text-ink' : 'border-chrome text-muted hover:border-ink dark:border-grain-700'"
+                @click="filterBy(category.value)"
+            >
+                {{ category.label }}
+                <span v-if="category.unread" class="figures ml-1">({{ category.unread }})</span>
+            </button>
+        </div>
 
         <EmptyState
             v-if="!notifications.length"
@@ -61,6 +103,14 @@ function readAll() {
                             {{ item.title }}
                         </p>
                         <p v-if="item.body" class="mt-0.5 text-sm text-muted">{{ item.body }}</p>
+                        <!--
+                            Shown only in the unfiltered list. Inside a filtered
+                            view every row carries the same label, which is
+                            noise repeating what the active filter already says.
+                        -->
+                        <p v-if="item.categoryLabel && !filter" class="mt-1 text-2xs uppercase tracking-wider text-muted">
+                            {{ item.categoryLabel }}
+                        </p>
                     </div>
 
                     <span class="shrink-0 text-xs text-muted">{{ item.at }}</span>

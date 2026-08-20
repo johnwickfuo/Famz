@@ -7,6 +7,7 @@ use App\Http\Controllers\Academy\CoursePlayerController;
 use App\Http\Controllers\Academy\LessonFileController;
 use App\Http\Controllers\Academy\QuizController;
 use App\Http\Controllers\AssistantController;
+use App\Http\Controllers\AccountController;
 use App\Http\Controllers\BuyerRequestController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CatalogueController;
@@ -24,6 +25,7 @@ use App\Http\Controllers\Mentorship\MentorDirectoryController;
 use App\Http\Controllers\Mentorship\MentorRegistrationController;
 use App\Http\Controllers\NegotiatedPurchaseController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\NotificationPreferenceController;
 use App\Http\Controllers\OfferController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ProductController;
@@ -321,6 +323,20 @@ Route::middleware('auth')->group(function () {
         ->name('notifications.read');
     Route::post('/notifications/read-all', [NotificationController::class, 'readAll'])
         ->name('notifications.readAll');
+
+    /*
+     * One place for everything about somebody's own account.
+     *
+     * Before this, a seller changed their bank details in the seller panel,
+     * their password at /profile, and their notification settings nowhere —
+     * three addresses for "things about me", which is how people end up unable
+     * to find the one that matters.
+     */
+    Route::get('/account', [AccountController::class, 'edit'])->name('account.edit');
+    Route::put('/account/notifications', [NotificationPreferenceController::class, 'update'])
+        ->name('account.notifications.update');
+    Route::delete('/account/sessions', [AccountController::class, 'destroyOtherSessions'])
+        ->name('account.sessions.destroy');
 
     Route::get('/disputes', [DisputeController::class, 'index'])->name('disputes.index');
     Route::get('/orders/parts/{subOrder}/dispute', [DisputeController::class, 'create'])

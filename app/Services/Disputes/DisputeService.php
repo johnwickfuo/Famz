@@ -15,6 +15,7 @@ use App\Models\MentorshipEngagement;
 use App\Models\MentorshipInvoice;
 use App\Models\SubOrder;
 use App\Models\User;
+use App\Notifications\DisputeRaised;
 use App\Services\Mentorship\EngagementService;
 use App\Services\Orders\FulfilmentService;
 use App\Services\Settlement\SettlementManager;
@@ -145,7 +146,7 @@ class DisputeService
             );
         }
 
-        return DB::transaction(function () use ($subOrder, $buyer, $reason, $description, $evidenceImages): Dispute {
+        $dispute = DB::transaction(function () use ($subOrder, $buyer, $reason, $description, $evidenceImages): Dispute {
             $dispute = new Dispute;
             $dispute->forceFill([
                 'sub_order_id' => $subOrder->getKey(),
@@ -164,6 +165,50 @@ class DisputeService
 
             return $dispute->refresh();
         });
+
+        $this->tellTheOtherParty($dispute, $buyer);
+
+        return $dispute;
+    }
+
+    /**
+     * Tell whoever now has a clock running.
+     *
+     * Sent after the transaction, never inside it: a queued job can be picked
+     * up by a worker before the commit lands, and an email about a dispute the
+     * database does not have yet is worse than a late one.
+     *
+     * The raiser is excluded. Somebody who has just filled in a form does not
+     * need an email telling them they filled in a form.
+     */
+    private function tellTheOtherParty(Dispute $dispute, User $raiser): void
+    {
+        $other = $dispute->isMentorship()
+            ? $this->engagementCounterparty($dispute, $raiser)
+            : $dispute->subOrder?->seller?->user;
+
+        if ($other === null || $other->is($raiser)) {
+            return;
+        }
+
+        $other->notify(new DisputeRaised($dispute, route('disputes.show', $dispute)));
+    }
+
+    private function engagementCounterparty(Dispute $dispute, User $raiser): ?User
+    {
+        $engagement = $dispute->engagement;
+
+        if ($engagement === null) {
+            return null;
+        }
+
+        $mentorUser = $engagement->mentor?->user;
+
+        // Either side may raise it, so the counterparty is "whichever of the
+        // two is not the person who just filled in the form".
+        return $mentorUser !== null && $mentorUser->is($raiser)
+            ? $engagement->client
+            : $mentorUser;
     }
 
     /**
@@ -285,7 +330,7 @@ class DisputeService
             );
         }
 
-        return DB::transaction(function () use ($engagement, $raiser, $reason, $description, $evidenceImages): Dispute {
+        $dispute = DB::transaction(function () use ($engagement, $raiser, $reason, $description, $evidenceImages): Dispute {
             $dispute = new Dispute;
 
             $dispute->forceFill([
@@ -307,6 +352,10 @@ class DisputeService
 
             return $dispute->refresh();
         });
+
+        $this->tellTheOtherParty($dispute, $raiser);
+
+        return $dispute;
     }
 
     /**

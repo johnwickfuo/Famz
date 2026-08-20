@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Enums\NotificationCategory;
 use App\Mail\BrandedMailable;
 use App\Mail\OfferAcceptedMail;
 use App\Models\NegotiatedPurchase;
@@ -18,6 +19,11 @@ class OfferAccepted extends PlatformNotification
     public function mailable(object $notifiable): BrandedMailable
     {
         return new OfferAcceptedMail($this->offer, $this->purchase, $this->forBuyer);
+    }
+
+    public function category(): NotificationCategory
+    {
+        return NotificationCategory::Offers;
     }
 
     /**

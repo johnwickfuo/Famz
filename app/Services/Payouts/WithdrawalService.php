@@ -9,6 +9,7 @@ use App\Models\PayoutAccount;
 use App\Models\User;
 use App\Models\WalletTransaction;
 use App\Models\Withdrawal;
+use App\Notifications\WithdrawalPaid;
 use App\Services\Payments\Data\TransferRequest;
 use App\Services\Payments\PaymentGatewayManager;
 use App\Services\Wallet\WalletService;
@@ -280,6 +281,14 @@ class WithdrawalService
             'gateway_reference' => $gatewayReference ?? $withdrawal->gateway_reference,
             'processed_at' => $withdrawal->processed_at ?? now(),
         ])->save();
+
+        /*
+         * Told after the write, and outside any transaction. A queued
+         * notification dispatched inside one can be picked up by a worker
+         * before the commit lands, and then it reads a row that says the money
+         * has not been sent yet.
+         */
+        $withdrawal->user?->notify(new WithdrawalPaid($withdrawal->fresh(['payoutAccount'])));
 
         return $withdrawal;
     }

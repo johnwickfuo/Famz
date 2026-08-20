@@ -2,7 +2,10 @@
 
 namespace App\Notifications;
 
+use App\Enums\NotificationCategory;
 use App\Mail\BrandedMailable;
+use App\Models\User;
+use App\Services\Notifications\NotificationPreferences;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
@@ -27,11 +30,31 @@ abstract class PlatformNotification extends Notification implements ShouldQueue
     use Queueable;
 
     /**
+     * What kind of thing this is, for grouping and for preferences.
+     *
+     * Abstract rather than defaulted. A notification with no category would
+     * silently become unfilterable — arriving whatever anybody had switched off
+     * — and the failure would be invisible until somebody complained about
+     * email they could not stop.
+     */
+    abstract public function category(): NotificationCategory;
+
+    /**
+     * The channels, after the recipient's preferences.
+     *
+     * A non-User notifiable — an on-demand address for a guest who booked a
+     * consultation without registering — has no preferences to consult and no
+     * database to store a row in, so it gets mail and nothing else.
+     *
      * @return array<int, string>
      */
     public function via(object $notifiable): array
     {
-        return ['database', 'mail'];
+        if (! $notifiable instanceof User) {
+            return ['mail'];
+        }
+
+        return app(NotificationPreferences::class)->channelsFor($notifiable, $this->category());
     }
 
     abstract public function mailable(object $notifiable): BrandedMailable;
@@ -42,6 +65,21 @@ abstract class PlatformNotification extends Notification implements ShouldQueue
      * @return array<string, mixed>
      */
     abstract public function toArray(object $notifiable): array;
+
+    /**
+     * The stored row, with the category stamped on by the base class.
+     *
+     * Written here rather than left to each subclass so that filtering the
+     * notification centre by category cannot be defeated by one notification
+     * forgetting to include it — and so an old row keeps the category it was
+     * sent under even if the code later changes.
+     *
+     * @return array<string, mixed>
+     */
+    public function toDatabase(object $notifiable): array
+    {
+        return [...$this->toArray($notifiable), 'category' => $this->category()->value];
+    }
 
     public function toMail(object $notifiable): BrandedMailable
     {

@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Enums\NotificationCategory;
 use App\Mail\BrandedMailable;
 use App\Mail\BuyerRequestReviewedMail;
 use App\Models\BuyerRequest;
@@ -16,6 +17,11 @@ class BuyerRequestReviewed extends PlatformNotification
     public function mailable(object $notifiable): BrandedMailable
     {
         return new BuyerRequestReviewedMail($this->buyerRequest, $this->approved);
+    }
+
+    public function category(): NotificationCategory
+    {
+        return NotificationCategory::Offers;
     }
 
     /**
