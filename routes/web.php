@@ -12,6 +12,8 @@ use App\Http\Controllers\CatalogueController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\Consultations\ConsultationController;
 use App\Http\Controllers\DisputeController;
+use App\Http\Controllers\Jobs\JobBoardController;
+use App\Http\Controllers\Jobs\WorkerDirectoryController;
 use App\Http\Controllers\Mentorship\EngagementController;
 use App\Http\Controllers\Mentorship\MentorDirectoryController;
 use App\Http\Controllers\Mentorship\MentorRegistrationController;
@@ -29,6 +31,16 @@ use Inertia\Inertia;
 
 Route::get('/', [PublicPageController::class, 'home'])->name('home');
 Route::get('/s/{section}', [PublicPageController::class, 'section'])->name('sections.show');
+
+/*
+ * The jobs board.
+ *
+ * Public and free. The worker side of it is NOT public — see the routes inside
+ * the auth group below, and WorkerProfilePolicy for why: a crawlable index of
+ * people looking for work is the raw material for exactly the harvesting the
+ * contact rule exists to prevent.
+ */
+Route::get('/jobs', [JobBoardController::class, 'index'])->name('jobs.index');
 
 // The catalogue.
 Route::get('/market', [CatalogueController::class, 'home'])->name('catalogue.home');
@@ -242,6 +254,14 @@ Route::middleware('auth')->group(function () {
         ->whereNumber('version')
         ->name('quotations.proposal');
 
+    /*
+     * The worker directory is for employers, enforced by WorkerProfilePolicy
+     * rather than by being unlinked. Every view of a worker is logged, and the
+     * phone number is released by WorkerContactGuard or not at all.
+     */
+    Route::get('/jobs/workers', [WorkerDirectoryController::class, 'index'])->name('jobs.workers.index');
+    Route::get('/jobs/workers/{worker}', [WorkerDirectoryController::class, 'show'])->name('jobs.workers.show');
+
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
     Route::get('/notifications/{notification}', [NotificationController::class, 'read'])
         ->name('notifications.read');
@@ -282,6 +302,12 @@ Route::get('/mentors/{mentor}', [MentorDirectoryController::class, 'show'])->nam
  * guest holding the reference in their session. Registered here, after
  * /consultations, for the same reason as every other slug route in this file.
  */
+/*
+ * One job. Registered here, after /jobs, for the same reason as every other
+ * slug route in this file: a literal path must win over a wildcard.
+ */
+Route::get('/jobs/{listing}', [JobBoardController::class, 'show'])->name('jobs.show');
+
 Route::get('/consult/{consultation}', [ConsultationController::class, 'show'])->name('consultations.show');
 Route::post('/consult/{consultation}/follow-up', [ConsultationController::class, 'followUp'])
     ->name('consultations.followup');
