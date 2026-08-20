@@ -27,6 +27,7 @@ use App\Http\Controllers\Mentorship\MentorRegistrationController;
 use App\Http\Controllers\NegotiatedPurchaseController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\NotificationPreferenceController;
+use App\Http\Controllers\SearchController;
 use App\Http\Controllers\OfferController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ProductController;
@@ -52,7 +53,22 @@ Route::get('/jobs', [JobBoardController::class, 'index'])->name('jobs.index');
 
 // The catalogue.
 Route::get('/market', [CatalogueController::class, 'home'])->name('catalogue.home');
-Route::get('/search', [CatalogueController::class, 'search'])->name('search');
+/*
+ * One search box, five kinds of answer.
+ *
+ * Deliberately NOT including worker profiles. Those exist to be found by
+ * employers who have registered and accepted a rate limit, and a public search
+ * box is exactly the harvesting route the jobs module was built to close.
+ */
+Route::get('/search', SearchController::class)->name('search');
+
+/*
+ * The marketplace's own product search, which is a different tool and keeps its
+ * own address. Global search gives a cross-platform overview; this one has the
+ * filters, the sorting and the pagination somebody uses when they already know
+ * they want to buy a thing.
+ */
+Route::get('/market/search', [CatalogueController::class, 'search'])->name('catalogue.search');
 
 // The wanted-ad board is public: somebody who has not signed up should be able
 // to see that there is business here before being asked to register.

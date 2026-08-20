@@ -191,7 +191,7 @@ it('finds a listing by a word in its name', function () {
     Product::factory()->for($this->oyoSeller, 'seller')->create(['name' => 'Broiler starter mash', 'category_id' => $this->chicks->id]);
     Product::factory()->for($this->oyoSeller, 'seller')->create(['name' => 'Plasson drinker', 'category_id' => $this->chicks->id]);
 
-    expect(namesOn(route('search', ['q' => 'mash']), $this))
+    expect(namesOn(route('catalogue.search', ['q' => 'mash']), $this))
         ->toContain('Broiler starter mash')->not->toContain('Plasson drinker');
 });
 
@@ -202,14 +202,14 @@ it('finds a listing by a word only in its description', function () {
         'category_id' => $this->chicks->id,
     ]);
 
-    expect(namesOn(route('search', ['q' => 'incubator']), $this))->toContain('Assorted equipment');
+    expect(namesOn(route('catalogue.search', ['q' => 'incubator']), $this))->toContain('Assorted equipment');
 });
 
 it('requires every word the shopper typed', function () {
     Product::factory()->for($this->oyoSeller, 'seller')->create(['name' => 'Broiler starter mash', 'description' => 'Poultry feed.', 'category_id' => $this->chicks->id]);
     Product::factory()->for($this->oyoSeller, 'seller')->create(['name' => 'Layer starter crumbs', 'description' => 'Poultry feed.', 'category_id' => $this->chicks->id]);
 
-    expect(namesOn(route('search', ['q' => 'broiler starter']), $this))
+    expect(namesOn(route('catalogue.search', ['q' => 'broiler starter']), $this))
         ->toContain('Broiler starter mash')
         ->not->toContain('Layer starter crumbs');
 });
@@ -219,26 +219,26 @@ it('does not treat a hyphen in what somebody typed as an exclusion', function ()
 
     // In boolean mode a bare "-old" would mean "must not contain old", quietly
     // returning the opposite of what was asked for.
-    expect(namesOn(route('search', ['q' => 'day-old']), $this))->toContain('Day-old broiler chicks');
+    expect(namesOn(route('catalogue.search', ['q' => 'day-old']), $this))->toContain('Day-old broiler chicks');
 });
 
 it('returns nothing rather than everything for a search that matches nothing', function () {
     Product::factory()->for($this->oyoSeller, 'seller')->create(['category_id' => $this->chicks->id]);
 
-    expect(namesOn(route('search', ['q' => 'zzzznotathinganybodysells']), $this))->toBe([]);
+    expect(namesOn(route('catalogue.search', ['q' => 'zzzznotathinganybodysells']), $this))->toBe([]);
 });
 
 it('shows everything when no search term is given', function () {
     Product::factory()->count(3)->for($this->oyoSeller, 'seller')->create(['category_id' => $this->chicks->id]);
 
-    expect(namesOn(route('search'), $this))->toHaveCount(3);
+    expect(namesOn(route('catalogue.search'), $this))->toHaveCount(3);
 });
 
 it('keeps the filters applied while searching', function () {
     Product::factory()->for($this->oyoSeller, 'seller')->create(['name' => 'Oyo mash', 'category_id' => $this->chicks->id]);
     Product::factory()->for($this->kanoSeller, 'seller')->create(['name' => 'Kano mash', 'category_id' => $this->chicks->id]);
 
-    expect(namesOn(route('search', ['q' => 'mash', 'state' => ['Oyo']]), $this))
+    expect(namesOn(route('catalogue.search', ['q' => 'mash', 'state' => ['Oyo']]), $this))
         ->toContain('Oyo mash')->not->toContain('Kano mash');
 });
 
@@ -328,7 +328,7 @@ it('reports the sort actually in force so the control is not blank', function ()
     $browse = $this->get(route('catalogue.category', $this->chicks->slug))->viewData('page')['props'];
     expect($browse['filters']['sort'])->toBe('newest');
 
-    $searched = $this->get(route('search', ['q' => 'anything']))->viewData('page')['props'];
+    $searched = $this->get(route('catalogue.search', ['q' => 'anything']))->viewData('page')['props'];
     expect($searched['filters']['sort'])->toBe('relevance');
 
     $chosen = $this->get(route('catalogue.category', [$this->chicks->slug, 'sort' => 'price_asc']))->viewData('page')['props'];
