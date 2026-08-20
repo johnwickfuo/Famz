@@ -108,16 +108,26 @@ class FeedCalculatorService
             ));
         }
 
+        /*
+         * Report the weeks actually summed, not the weeks asked about. A range
+         * that runs past the end of the table is truncated above, and a label
+         * reading "weeks 1 to 20" over a total covering weeks 1 to 8 would be a
+         * false citation — the exact failure this module exists to prevent,
+         * arriving through the back door.
+         */
+        $coveredFrom = (int) collect($weeks)->min('week');
+        $coveredTo = (int) collect($weeks)->max('week');
+
         return FeedCalculation::make(
             species: $first->species,
             breed: $first->breed,
             productionType: $first->production_type,
             birdCount: $birdCount,
-            fromWeek: $fromWeek,
-            toWeek: $toWeek,
+            fromWeek: $coveredFrom,
+            toWeek: $coveredTo,
             totalFeedKg: round($totalFeedKg, 2),
             totalWaterLitres: round($totalWaterLitres, 1),
-            expectedWeightG: $this->rowForWeek($rows, $toWeek)?->target_weight_g,
+            expectedWeightG: $this->rowForWeek($rows, $coveredTo)?->target_weight_g,
             weeks: $weeks,
             sources: array_keys($sources),
         );
@@ -250,10 +260,22 @@ class FeedCalculatorService
     /**
      * The row that governs a given week: the latest one at or below it.
      *
+     * Nothing past the end of the table, and that guard is load-bearing. Layer
+     * guides are quoted at intervals — 16, 18, 20, 26 — so reading week 19 off
+     * the week 18 row is correct and is how the printed guides are used. Doing
+     * the same thing past the LAST row is not reading, it is extrapolating: a
+     * question about a Ross 308 at week 30 would otherwise repeat the week 8
+     * figure twenty-two times and hand a farmer a confident total for a bird
+     * that was slaughtered five months earlier.
+     *
      * @param  Collection<int, BreedStandard>  $rows
      */
     private function rowForWeek(Collection $rows, int $week): ?BreedStandard
     {
+        if ($week > (int) $rows->max('week_number')) {
+            return null;
+        }
+
         return $rows->where('week_number', '<=', $week)->last();
     }
 }

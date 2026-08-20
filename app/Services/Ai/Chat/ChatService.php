@@ -280,7 +280,16 @@ class ChatService
         return array_slice(array_values($history), -self::HISTORY_TURNS);
     }
 
-    private function tidy(string $message): string
+    /**
+     * The message as the model will actually see it.
+     *
+     * Public because the caller has to store the same string: a transcript
+     * holding a four-thousand-character paste next to an answer written from
+     * the first thousand characters of it is an audit trail that disagrees
+     * with itself, and the whole value of storing the exchange is that it
+     * says what really happened.
+     */
+    public function tidy(string $message): string
     {
         // Control characters out: a prompt is a string somebody typed, and a
         // stray null or an ANSI escape has no business travelling to an API.

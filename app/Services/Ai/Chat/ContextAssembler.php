@@ -110,6 +110,21 @@ class ContextAssembler
             $this->feedFacts($calculation, $perBird),
             array_filter([
                 $weekNote,
+                /*
+                 * The calculator stops at the end of the table rather than
+                 * extrapolating, so a question reaching past it comes back
+                 * covering fewer weeks than were asked about. Saying so is not
+                 * optional: a farmer who asked about twelve weeks and is handed
+                 * an eight-week total without being told would plan against it.
+                 */
+                $calculation->toWeek < $toWeek
+                    ? __('The :breed table stops at week :last, so this covers weeks :from to :last only — not through to week :asked as asked.', [
+                        'breed' => $calculation->breed,
+                        'last' => $calculation->toWeek,
+                        'from' => $calculation->fromWeek,
+                        'asked' => $toWeek,
+                    ])
+                    : null,
                 $perBird
                     ? __('No flock size was given, so these are per-bird figures. Ask how many birds and the totals can be given.')
                     : null,

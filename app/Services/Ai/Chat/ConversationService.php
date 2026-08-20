@@ -48,6 +48,10 @@ class ConversationService
             return ChatTurn::blocked((string) $decision->reason, $decision->retryAfterSeconds);
         }
 
+        // Trimmed and capped before anything else, so the row stored below is
+        // character-for-character what the model was asked.
+        $message = $this->chat->tidy($message);
+
         $conversation = $conversation ?? $this->start($user, $sessionToken);
 
         $history = $this->historyFor($conversation);
