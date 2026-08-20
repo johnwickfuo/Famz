@@ -120,6 +120,20 @@ class SettingsSeeder extends Seeder
          */
         'worker_contact_daily_limit' => ['type' => 'int', 'value' => '25'],
 
+        /*
+         * The assistant.
+         *
+         * Below this many listings a market price is not worth quoting: a
+         * median built from two listings is two people's asking prices wearing
+         * a statistic's clothes, and a farmer who budgets against it has been
+         * actively misled.
+         */
+        'ai_price_minimum_sample' => ['type' => 'int', 'value' => '5'],
+
+        // How stale a captured price may be before the assistant stops using
+        // it at all.
+        'ai_price_max_age_days' => ['type' => 'int', 'value' => '21'],
+
         // How long after a delivery is marked a buyer may still dispute it.
         // Deliberately not shorter than the escrow window: a buyer must never
         // lose the right to complain before the money has gone.

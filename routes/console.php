@@ -45,3 +45,12 @@ Schedule::command('quotations:expire')->dailyAt('07:00')->withoutOverlapping();
  * midnight.
  */
 Schedule::command('jobs:expire')->dailyAt('06:00')->withoutOverlapping();
+
+/*
+ * Turning the marketplace's own listings into prices the assistant can quote.
+ *
+ * Daily and early, before anybody is asking. The figures are only as good as
+ * the listings behind them, which is the honest trade for numbers that can be
+ * cited with a sample size and a date.
+ */
+Schedule::command('market:capture-prices')->dailyAt('04:00')->withoutOverlapping();
