@@ -23,31 +23,143 @@ farmers, feed sellers, equipment dealers and farm workers.
 | Mail | Resend, Postmark, Brevo or Mailgun in production; Mailpit locally |
 | Tests | Pest |
 
-## Getting started
+## Installing it locally
+
+### What you need first
+
+| | | |
+|---|---|---|
+| PHP | 8.3 or newer | with the extensions below |
+| Composer | 2.x | |
+| MySQL | 8.0+ / MariaDB 10.6+ | |
+| Redis | 6+ | cache and queue |
+| Node | 20+ | to build the front end |
+
+`composer.json` declares every PHP extension the application needs, so this
+answers the question rather than a list in a README going stale:
+
+```bash
+composer check-platform-reqs
+```
+
+On Ubuntu, `apt install php8.3-{curl,gd,intl,mbstring,mysql,redis,xml,zip}`
+covers it. `gd` and `redis` are the two people most often lack, and neither
+fails in an obvious way — see the troubleshooting table at the end.
+
+### Create the database
+
+**Do this before migrating.** The step is easy to skip and the error it
+produces names a permission problem rather than a missing database:
+
+```sql
+CREATE DATABASE agriplatform CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'agriplatform'@'localhost' IDENTIFIED BY 'a password you choose';
+GRANT ALL PRIVILEGES ON agriplatform.* TO 'agriplatform'@'localhost';
+FLUSH PRIVILEGES;
+```
+
+`utf8mb4` is not optional. Nigerian names carry diacritics, and MySQL's `utf8`
+is three bytes and mangles them.
+
+### Install
 
 ```bash
 composer install
 npm install
+
 cp .env.example .env
 php artisan key:generate
+```
 
-# Point DB_* at a MySQL database and REDIS_* at a Redis server, then:
+Now open `.env` and set four things. Every variable in the file is documented
+in the file itself; these are the ones with no sensible default:
+
+```ini
+DB_DATABASE=agriplatform
+DB_USERNAME=agriplatform
+DB_PASSWORD=the password you chose above
+
+# Without these the seeder creates no administrator, rather than creating one
+# with a guessable password — and you will not be able to reach /admin.
+SUPER_ADMIN_EMAIL=you@example.test
+SUPER_ADMIN_PASSWORD=something long
+```
+
+Then:
+
+```bash
 php artisan migrate --seed
 php artisan storage:link
 
-npm run build      # or: npm run dev
+npm run build          # or `npm run dev` while working on the front end
 php artisan serve
 ```
 
-Set `SUPER_ADMIN_EMAIL` and `SUPER_ADMIN_PASSWORD` before seeding to create the
-first administrator. Without them the seeder skips that step rather than
-creating an account with a guessable password.
+### Put something in it
 
-For local mail, run Mailpit and leave `MAIL_MAILER=mailpit`:
+An empty install is eight empty screens. This fills all of them, and prints
+the accounts to sign in as:
 
 ```bash
-docker run -d -p 1025:1025 -p 8025:8025 axllent/mailpit   # UI at :8025
+php artisan db:seed --class=DemoSeeder
 ```
+
+### Check it actually worked
+
+```bash
+curl -s localhost:8000/health          # {"status":"ok"}
+php artisan ledger:reconcile           # "Everything agrees."
+php artisan test                       # the whole suite
+```
+
+`/health` is the useful one: it checks the database, the cache, storage and
+the queue, and tells you which is broken rather than leaving you to guess.
+Add `?token=` (set `HEALTH_CHECK_TOKEN`) to see the detail.
+
+### Local mail
+
+Nothing is sent anywhere. Mailpit catches everything and shows it at
+`localhost:8025`:
+
+```bash
+docker run -d -p 1025:1025 -p 8025:8025 axllent/mailpit
+```
+
+Leave `MAIL_MAILER=mailpit`. To see how a particular message looks,
+`php artisan mail:test you@example.test --list` shows the templates and
+`--template=order-paid` sends one.
+
+### Queue workers
+
+Most of the platform's work — every email, every settlement, every
+notification — runs on a queue. In development, one worker covering both
+queues is enough:
+
+```bash
+php artisan queue:work --queue=default,mail
+```
+
+Without it the site works and nothing is ever emailed, which is a confusing
+way to spend an afternoon.
+
+### When it does not work
+
+| What you see | What it means |
+|---|---|
+| `SQLSTATE[HY000] [1698] Access denied for user` | The database or its user does not exist. Run the `CREATE DATABASE` block above |
+| `SQLSTATE[HY000] [2002] Connection refused` on migrate | MySQL is not running |
+| `Connection refused` from a page that loads, on a cache or session call | Redis is not running, or `ext-redis` is missing |
+| `Class "Redis" not found` | `ext-redis` is missing. Predis is not installed and `REDIS_CLIENT=phpredis` is the default |
+| Images 404 although the upload succeeded | `php artisan storage:link` was not run |
+| An upload is rejected with no obvious reason | `ext-gd` is missing. Every image is re-encoded through it, and it fails closed on purpose |
+| `/admin` will not let you in | `SUPER_ADMIN_EMAIL` and `SUPER_ADMIN_PASSWORD` were not set before seeding. Set them and re-run `php artisan db:seed --class=SuperAdminSeeder` |
+| Emails never arrive | No queue worker is running. See above |
+| A change to a setting does not show | Only if `config:cache` has been run — `php artisan config:clear`. Settings themselves are live on the next request |
+
+### Deploying it
+
+Server provisioning, the deploy script, TLS, gateway webhooks and the mail
+deliverability runbook are in [`deploy/README.md`](deploy/README.md).
 
 ## Where the company name lives
 

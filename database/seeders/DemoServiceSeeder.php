@@ -11,8 +11,11 @@ use App\Enums\RoleName;
 use App\Models\Quotation;
 use App\Models\QuotationRequest;
 use App\Models\User;
+use App\Services\Consultations\ConsultationCheckout;
 use App\Services\Consultations\ConsultationService;
+use App\Services\Payments\PaymentProcessor;
 use App\Services\Quotations\QuotationService;
+use App\Services\Quotations\StudyFeeCheckout;
 use App\Services\Quotations\StudyFeeService;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Collection;
@@ -183,10 +186,31 @@ class DemoServiceSeeder extends Seeder
         }
     }
 
+    /**
+     * Quoted, then paid the way a real client pays.
+     *
+     * Through the checkout and the payment processor rather than by calling
+     * markPaid directly. Calling it directly is what this seeder did first, and
+     * it produced a consultation the platform had been paid ₦50,000 for with no
+     * ledger entry anywhere — the exact failure the rest of this seeder exists
+     * to avoid, and one the aggregate on the reconciliation report then showed
+     * as a phantom difference nobody could explain.
+     */
     private function quoteAndPay(ConsultationService $service, $consultation, User $admin): void
     {
         $service->quote($consultation, $admin, 50_000_00, 'Site visit, soil and water samples, written findings.');
-        $service->markPaid($consultation->refresh(), 'DEMO-'.$consultation->reference);
+
+        $client = $consultation->user;
+
+        if ($client === null) {
+            return;
+        }
+
+        $order = app(ConsultationCheckout::class)
+            ->begin($client, $consultation->refresh());
+
+        app(PaymentProcessor::class)
+            ->markPaid($order, 'paystack', 'DEMO-'.$order->reference);
     }
 
     private function quotePayAndFinish(ConsultationService $service, $consultation, User $admin): void
@@ -241,7 +265,15 @@ class DemoServiceSeeder extends Seeder
                 }
 
                 $fee = $fees->raiseFor($request->refresh());
-                $fees->markPaid($fee, 'DEMO-'.$request->reference);
+
+                // Paid through the checkout, for the same reason as the
+                // consultation above: markPaid alone moves the gate without
+                // recording the money.
+                $feeOrder = app(StudyFeeCheckout::class)
+                    ->begin($client, $request->refresh());
+
+                app(PaymentProcessor::class)
+                    ->markPaid($feeOrder, 'paystack', 'DEMO-'.$feeOrder->reference);
 
                 $quotation = $quotations->startDraft($request->refresh(), $admin, [
                     'title' => $row['farm'].', '.number_format($row['capacity']).' '.$row['unit'],

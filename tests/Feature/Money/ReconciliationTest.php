@@ -13,6 +13,7 @@ use App\Models\WalletTransaction;
 use App\Notifications\ReconciliationAlert;
 use App\Services\Payments\WebhookHandler;
 use App\Services\Reporting\ReconciliationReport;
+use App\Services\Wallet\WalletService;
 use Database\Seeders\RoleSeeder;
 use Database\Seeders\SettingsSeeder;
 use Illuminate\Support\Facades\Notification;
@@ -252,4 +253,69 @@ it('narrows to a date range when asked', function (): void {
     );
 
     expect($findings)->toBe([]);
+});
+
+it('counts every revenue stream in the platform total', function (): void {
+    /*
+     * Not just commission. Four of the platform's revenue streams — courses,
+     * consultations, study fees and the mentorship cut — land on the platform
+     * account under their own ledger types, and a total that counted only
+     * Commission reported the marketplace's takings as the whole business.
+     *
+     * The reconciliation is what caught it: check one compares the reported
+     * figure against the raw sum of the platform's own entries, and they had
+     * drifted apart by exactly the non-marketplace revenue.
+     */
+    // A list of pairs rather than a keyed array: an enum case cannot be an
+    // array key.
+    $streams = [
+        [LedgerType::Commission, 10_000_00],
+        [LedgerType::CourseSale, 15_000_00],
+        [LedgerType::ConsultationFee, 50_000_00],
+        [LedgerType::QuotationStudyFee, 20_000_00],
+    ];
+
+    foreach ($streams as [$type, $amount]) {
+        WalletTransaction::query()->create([
+            'user_id' => null,
+            'type' => $type,
+            'amount_kobo' => $amount,
+            'state' => LedgerState::Released,
+            'description' => 'demo revenue',
+        ]);
+    }
+
+    expect(app(WalletService::class)->platformEarnings())
+        ->toBe(collect($streams)->sum(fn (array $pair): int => $pair[1]));
+
+    // And the books still agree, which is the property that broke first.
+    expect($this->report->run()['clean'])->toBeTrue();
+});
+
+it('does not report a difference for money that never had a seller', function (): void {
+    /*
+     * A course, a consultation and a study fee each produce a paid order with
+     * no sub-orders at all — the money is the platform's and there is nobody to
+     * split with. The totals line counted those orders as collected and their
+     * ledger entries as nothing, so a platform selling anything besides
+     * marketplace goods showed a permanent phantom difference on the one line
+     * that is meant to be the headline reassurance.
+     */
+    $order = Order::factory()->create([
+        'status' => OrderStatus::Paid,
+        'paid_at' => now(),
+        'grand_total_kobo' => 50_000_00,
+    ]);
+
+    WalletTransaction::query()->create([
+        'user_id' => null,
+        'type' => LedgerType::ConsultationFee,
+        'amount_kobo' => 50_000_00,
+        'state' => LedgerState::Released,
+        'description' => 'Consultation for order '.$order->reference,
+    ]);
+
+    $totals = $this->report->run()['totals'];
+
+    expect($totals['difference_kobo'])->toBe(0);
 });

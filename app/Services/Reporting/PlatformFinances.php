@@ -108,11 +108,58 @@ class PlatformFinances
          */
         $counting = [...LedgerState::spendable(), LedgerState::Held];
 
-        $credited = (int) WalletTransaction::query()
+        /*
+         * Marketplace money, which reaches the ledger through a sub-order.
+         */
+        $creditedOnOrders = (int) WalletTransaction::query()
             ->whereIn('type', [LedgerType::Sale, LedgerType::Commission])
             ->whereIn('state', $counting)
             ->whereHas('subOrder', fn ($query) => $query->whereIn('order_id', $paidOrderIds))
             ->sum('amount_kobo');
+
+        /*
+         * Everything else the platform sells, which does not.
+         *
+         * A course, a consultation, a farm-setup study fee and a mentorship
+         * invoice all produce a paid order with no sub-orders at all — the
+         * money is the platform's, or the mentor's, and there is no seller in
+         * between. Counting only the sub-order entries above meant every one of
+         * those payments raised `collected` and nothing raised `credited`, so a
+         * platform selling anything other than marketplace goods showed a
+         * permanent phantom difference on the line that is supposed to be the
+         * headline reassurance. Seven of the eight modules sell exactly that.
+         *
+         * Matched by date rather than by order, because these entries carry no
+         * order key — the link is in `meta` and is not indexed.
+         */
+        $creditedElsewhere = (int) WalletTransaction::query()
+            ->whereIn('type', [
+                LedgerType::CourseSale,
+                LedgerType::ConsultationFee,
+                LedgerType::QuotationStudyFee,
+                LedgerType::MentorshipEarning,
+            ])
+            ->whereIn('state', $counting)
+            ->whereNull('sub_order_id')
+            ->when($from, fn ($q, $date) => $q->where('created_at', '>=', $date))
+            ->when($until, fn ($q, $date) => $q->where('created_at', '<=', $date))
+            ->sum('amount_kobo');
+
+        /*
+         * The commission on a mentorship invoice, which is a Commission row
+         * with no sub-order — so neither query above would otherwise see it,
+         * and the mentor's share would appear without the platform's.
+         */
+        $creditedElsewhere += (int) WalletTransaction::query()
+            ->where('type', LedgerType::Commission)
+            ->whereIn('state', $counting)
+            ->whereNull('sub_order_id')
+            ->whereNotNull('mentorship_invoice_id')
+            ->when($from, fn ($q, $date) => $q->where('created_at', '>=', $date))
+            ->when($until, fn ($q, $date) => $q->where('created_at', '<=', $date))
+            ->sum('amount_kobo');
+
+        $credited = $creditedOnOrders + $creditedElsewhere;
 
         $reversed = (int) WalletTransaction::query()
             ->where('type', LedgerType::Reversal)

@@ -69,7 +69,11 @@ class WalletService
     }
 
     /**
-     * The platform's commission revenue, net of what it has given back.
+     * Everything the platform itself earned, net of what it has given back.
+     *
+     * All four revenue types: commission on marketplace and mentorship sales,
+     * plus course sales, consultation fees and study fees, which are the
+     * company's outright.
      *
      * Reversals count. A dispute refund claws commission back with a negative
      * Reversal row on the platform's account rather than by editing the
@@ -79,9 +83,21 @@ class WalletService
      */
     public function platformEarnings(): int
     {
+        /*
+         * Every revenue type, not just commission.
+         *
+         * This counted Commission alone, which meant a platform earning from
+         * courses, consultations and farm-setup studies reported only what the
+         * marketplace made — on the admin dashboard, where somebody looks to
+         * see what the business took. Four of the revenue streams were invisible.
+         *
+         * The nightly reconciliation caught it: check one compares this figure
+         * against the raw sum of the platform's own entries, and they had
+         * drifted apart by exactly the non-marketplace revenue.
+         */
         return WalletTransaction::query()
             ->platform()
-            ->whereIn('type', [LedgerType::Commission, LedgerType::Reversal])
+            ->whereIn('type', [...LedgerType::platformRevenue(), LedgerType::Reversal])
             ->whereIn('state', LedgerState::spendable())
             ->sum('amount_kobo');
     }

@@ -15,24 +15,29 @@ HestiaCP installs several PHP versions side by side. Set the web template for
 the domain to 8.3, then check the extensions:
 
 ```bash
-php8.3 -m | grep -E '^(bcmath|ctype|curl|dom|fileinfo|gd|intl|mbstring|openssl|pcntl|pdo_mysql|redis|xml|zip)$'
+composer check-platform-reqs
 ```
 
-All thirteen must be present.
+`composer.json` declares every extension the application needs, so this is the
+authoritative list and it fails with a name rather than a stack trace. On a
+bare server:
+
+```bash
+apt install php8.3-{curl,gd,intl,mbstring,mysql,redis,xml,zip}
+```
+
+Four are worth knowing about, because their failure modes are confusing:
 
 - **gd** — every uploaded image is decoded and re-encoded through it. Without
   gd, uploads fail closed rather than being stored unchecked, which is the
-  right failure but a confusing one.
-- **bcmath** — money is integer kobo, but commission splits use it.
+  right failure and a baffling one to debug.
+- **redis** — the phpredis extension. Predis is not installed, and
+  `REDIS_CLIENT=phpredis` is the default, so this is not optional.
 - **pcntl** — queue workers use it to handle the restart signal. Without it,
-  `queue:restart` does nothing and workers keep running old code after a
-  deploy.
-- **redis** — the phpredis extension. Predis works but is measurably slower
-  under the session load this platform puts on it.
-
-```bash
-apt install php8.3-{bcmath,curl,gd,intl,mbstring,mysql,redis,xml,zip}
-```
+  `queue:restart` does nothing and workers keep running old code after every
+  deploy, silently.
+- **intl** — money and dates are formatted through it. Without it the
+  application boots and then throws on the first page that shows a price.
 
 Then in `php.ini`:
 

@@ -58,6 +58,27 @@ enum LedgerType: string
     case QuotationStudyFee = 'quotation_study_fee';
 
     /**
+     * Every type that is the platform's own money.
+     *
+     * Commission is a cut of somebody else's sale; the other three are revenue
+     * the company earned outright, with no seller to split with. They are
+     * separate cases because "what did training earn" and "what did advice
+     * earn" are different questions — but every one of them is the platform's,
+     * and anything totalling what the business made has to count all four.
+     *
+     * @return array<int, self>
+     */
+    public static function platformRevenue(): array
+    {
+        return [
+            self::Commission,
+            self::CourseSale,
+            self::ConsultationFee,
+            self::QuotationStudyFee,
+        ];
+    }
+
+    /**
      * @return array<int, string>
      */
     public static function values(): array
