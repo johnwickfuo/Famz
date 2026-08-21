@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Quotations;
 
+use App\Services\Uploads\ImageIngest;
 use App\Documents\QuotationProposalDocument;
 use App\Enums\QuotationPowerSituation;
 use App\Enums\QuotationProjectType;
@@ -125,7 +126,7 @@ class QuotationController extends Controller
         ]);
 
         $validated['site_photos'] = collect($request->file('site_photos') ?? [])
-            ->map(fn ($file): string => $file->store('quotations/sites', 'public'))
+            ->map(fn ($file): string => app(ImageIngest::class)->store($file, 'quotations/sites'))
             ->all();
 
         $quotationRequest = $this->requests->submit($validated, $request->user());

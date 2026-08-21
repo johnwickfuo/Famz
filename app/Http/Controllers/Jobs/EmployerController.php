@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Jobs;
 
+use App\Services\Uploads\ImageIngest;
 use App\Enums\JobListingStatus;
 use App\Enums\JobType;
 use App\Enums\PayPeriod;
@@ -82,7 +83,7 @@ class EmployerController extends Controller
             $profile->user_id = $user->getKey();
 
             if ($request->hasFile('logo')) {
-                $profile->logo = $request->file('logo')->store('jobs/employers', 'public');
+                $profile->logo = app(ImageIngest::class)->store($request->file('logo'), 'jobs/employers');
             }
 
             $profile->save();

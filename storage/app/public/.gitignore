@@ -1,2 +1,4 @@
+# Uploads are not committed; the directory and its .htaccess are.
 *
 !.gitignore
+!.htaccess

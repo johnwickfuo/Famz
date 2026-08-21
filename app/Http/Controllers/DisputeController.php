@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\Uploads\ImageIngest;
 use App\Enums\DisputeReason;
 use App\Models\Dispute;
 use App\Models\DisputeMessage;
@@ -80,7 +81,7 @@ class DisputeController extends Controller
         ]);
 
         $paths = collect($request->file('evidence') ?? [])
-            ->map(fn ($file): string => $file->store('disputes', 'public'))
+            ->map(fn ($file): string => app(ImageIngest::class)->store($file, 'disputes'))
             ->all();
 
         try {

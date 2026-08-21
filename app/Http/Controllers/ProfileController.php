@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\Uploads\ImageIngest;
 use App\Http\Requests\ProfileUpdateRequest;
 use App\Support\Nigeria;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
@@ -59,9 +60,11 @@ class ProfileController extends Controller
                     $disk->delete($profile->avatar);
                 }
 
-                $profile->avatar = $request->file('avatar')->store('avatars', [
-                    'disk' => config('filesystems.default'),
-                ]);
+                $profile->avatar = app(ImageIngest::class)->store(
+                    $request->file('avatar'),
+                    'avatars',
+                    (string) config('filesystems.default'),
+                );
             }
 
             $user->profile()->save($profile);

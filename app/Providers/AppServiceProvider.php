@@ -31,6 +31,7 @@ use App\Services\Ai\NullAiProvider;
 use App\Services\Ai\NullTagResolver;
 use App\Services\Ai\TagResolver;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
 
@@ -76,6 +77,18 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Vite::prefetch(concurrency: 3);
+
+        /*
+         * HTTPS everywhere but local.
+         *
+         * Behind HestiaCP's proxy the application sees plain HTTP on the
+         * loopback, so it would generate http:// URLs for a site served over
+         * https:// — mixed content, and a payment redirect that some browsers
+         * refuse outright.
+         */
+        if (! $this->app->environment('local')) {
+            URL::forceScheme('https');
+        }
 
         /*
          * Bust the catalogue cache whenever the catalogue changes.

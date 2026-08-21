@@ -91,7 +91,8 @@ Route::get('/guides/{role}', [PageController::class, 'guide'])
     ->name('pages.guide');
 
 Route::get('/contact', [ContactController::class, 'create'])->name('contact.create');
-Route::post('/contact', [ContactController::class, 'store'])->name('contact.store');
+Route::post('/contact', [ContactController::class, 'store'])->name('contact.store')
+        ->middleware('throttle:forms');
 
 /*
  * One search box, five kinds of answer.
@@ -136,8 +137,10 @@ Route::get('/academy/courses', [AcademyController::class, 'catalogue'])->name('a
  * budget must degrade to cached answers rather than return a 429.
  */
 Route::get('/ask', [AssistantController::class, 'show'])->name('assistant.show');
-Route::post('/ask', [AssistantController::class, 'ask'])->name('assistant.ask');
-Route::post('/ask/reset', [AssistantController::class, 'reset'])->name('assistant.reset');
+Route::post('/ask', [AssistantController::class, 'ask'])->name('assistant.ask')
+        ->middleware('throttle:assistant');
+Route::post('/ask/reset', [AssistantController::class, 'reset'])->name('assistant.reset')
+        ->middleware('throttle:assistant');
 
 /*
  * Consultations with the company itself. Public and guest-friendly on purpose:
@@ -145,7 +148,8 @@ Route::post('/ask/reset', [AssistantController::class, 'reset'])->name('assistan
  * the problem loses the booking. Four fields and no account.
  */
 Route::get('/consult', [ConsultationController::class, 'create'])->name('consultations.create');
-Route::post('/consult', [ConsultationController::class, 'store'])->name('consultations.store');
+Route::post('/consult', [ConsultationController::class, 'store'])->name('consultations.store')
+        ->middleware('throttle:forms');
 
 /*
  * Finding a mentor. Public: somebody should be able to see who is here and
@@ -153,7 +157,8 @@ Route::post('/consult', [ConsultationController::class, 'store'])->name('consult
  * these pages, is how to reach anybody — that arrives with a paid engagement.
  */
 Route::get('/mentors', [MentorDirectoryController::class, 'create'])->name('mentors.find');
-Route::post('/mentors/match', [MentorDirectoryController::class, 'match'])->name('mentors.match');
+Route::post('/mentors/match', [MentorDirectoryController::class, 'match'])->name('mentors.match')
+        ->middleware('throttle:forms');
 Route::get('/mentors/shortlist/{match}', [MentorDirectoryController::class, 'shortlist'])
     ->name('mentors.shortlist');
 
@@ -216,20 +221,23 @@ Route::middleware('auth')->group(function () {
 
     // Applying to sell. Anyone with an account may apply; an administrator decides.
     Route::get('/sell', [SellerApplicationController::class, 'create'])->name('seller-application.create');
-    Route::post('/sell', [SellerApplicationController::class, 'store'])->name('seller-application.store');
+    Route::post('/sell', [SellerApplicationController::class, 'store'])->name('seller-application.store')
+        ->middleware('throttle:forms');
 
     // Checkout. The callback changes nothing — see CheckoutController::callback.
     Route::get('/checkout', [CheckoutController::class, 'show'])->name('checkout.show');
-    Route::post('/checkout', [CheckoutController::class, 'store'])->name('checkout.store');
+    Route::post('/checkout', [CheckoutController::class, 'store'])->name('checkout.store')
+        ->middleware('throttle:checkout');
     Route::get('/checkout/callback', [CheckoutController::class, 'callback'])->name('checkout.callback');
     Route::get('/checkout/{order}/status', [CheckoutController::class, 'status'])->name('checkout.status');
     // An order that was never paid for is not a dead end.
-    Route::post('/checkout/{order}/pay', [CheckoutController::class, 'pay'])->name('checkout.pay');
+    Route::post('/checkout/{order}/pay', [CheckoutController::class, 'pay'])->name('checkout.pay')
+        ->middleware('throttle:checkout');
 
     Route::get('/orders', [OrderController::class, 'index'])->name('orders.index');
     Route::get('/orders/{order}', [OrderController::class, 'show'])->name('orders.show');
     Route::post('/orders/parts/{subOrder}/received', [OrderController::class, 'markReceived'])
-        ->name('orders.received');
+        ->name('orders.received')->middleware('throttle:checkout');
 
     /*
      * Disputes. Raised against one seller's part of an order, because that is
@@ -240,28 +248,31 @@ Route::middleware('auth')->group(function () {
      * need an account.
      */
     Route::get('/requests/new', [BuyerRequestController::class, 'create'])->name('requests.create');
-    Route::post('/requests', [BuyerRequestController::class, 'store'])->name('requests.store');
+    Route::post('/requests', [BuyerRequestController::class, 'store'])->name('requests.store')
+        ->middleware('throttle:forms');
     Route::get('/requests/mine', [BuyerRequestController::class, 'mine'])->name('requests.mine');
     Route::get('/requests/{buyerRequest}/manage', [BuyerRequestController::class, 'manage'])
         ->name('requests.manage');
     Route::post('/requests/{buyerRequest}/close', [BuyerRequestController::class, 'close'])
-        ->name('requests.close');
+        ->name('requests.close')->middleware('throttle:offers');
     Route::post('/requests/{buyerRequest}/offers', [BuyerRequestController::class, 'offer'])
-        ->name('requests.offer');
+        ->name('requests.offer')->middleware('throttle:offers');
 
     /*
      * Haggling over a listing. The seller answers in their panel; a buyer
      * answers a counter here.
      */
-    Route::post('/listings/{product}/offers', [OfferController::class, 'store'])->name('offers.store');
-    Route::post('/offers/{offer}/respond', [OfferController::class, 'respond'])->name('offers.respond');
-    Route::post('/offers/{offer}/withdraw', [OfferController::class, 'withdraw'])->name('offers.withdraw');
+    Route::post('/listings/{product}/offers', [OfferController::class, 'store'])->name('offers.store')
+        ->middleware('throttle:offers');
+    Route::post('/offers/{offer}/respond', [OfferController::class, 'respond'])->name('offers.respond')
+        ->middleware('throttle:offers');
+    Route::post('/offers/{offer}/withdraw', [OfferController::class, 'withdraw'])->name('offers.withdraw')->middleware('throttle:offers');
 
     // The private checkout an accepted offer earns.
     Route::get('/agreed/{negotiatedPurchase}', [NegotiatedPurchaseController::class, 'show'])
         ->name('negotiated.show');
     Route::post('/agreed/{negotiatedPurchase}', [NegotiatedPurchaseController::class, 'store'])
-        ->name('negotiated.store');
+        ->name('negotiated.store')->middleware('throttle:checkout');
 
     // What has happened since somebody last looked.
     /*
@@ -271,24 +282,25 @@ Route::middleware('auth')->group(function () {
     Route::get('/academy/my-courses', [AcademyController::class, 'mine'])->name('academy.mine');
 
     Route::get('/academy/{course}/buy', [CourseCheckoutController::class, 'show'])->name('academy.checkout');
-    Route::post('/academy/{course}/buy', [CourseCheckoutController::class, 'store'])->name('academy.checkout.store');
+    Route::post('/academy/{course}/buy', [CourseCheckoutController::class, 'store'])->name('academy.checkout.store')
+        ->middleware('throttle:checkout');
 
     Route::get('/academy/{course}/learn', [CoursePlayerController::class, 'show'])->name('academy.player');
     Route::get('/academy/{course}/learn/{lesson}', [CoursePlayerController::class, 'show'])
         ->name('academy.player.lesson');
     Route::post('/academy/{course}/lessons/{lesson}/position', [CoursePlayerController::class, 'position'])
-        ->name('academy.player.position');
+        ->name('academy.player.position')->middleware('throttle:polling');
     Route::post('/academy/{course}/lessons/{lesson}/complete', [CoursePlayerController::class, 'complete'])
-        ->name('academy.player.complete');
+        ->name('academy.player.complete')->middleware('throttle:polling');
     Route::get('/academy/{course}/lessons/{lesson}/link', [CoursePlayerController::class, 'contentUrl'])
         ->name('academy.player.content');
 
     Route::get('/academy/{course}/quiz', [QuizController::class, 'show'])->name('academy.quiz');
-    Route::post('/academy/{course}/quiz', [QuizController::class, 'submit'])->name('academy.quiz.submit');
+    Route::post('/academy/{course}/quiz', [QuizController::class, 'submit'])->name('academy.quiz.submit')->middleware('throttle:polling');
     Route::get('/academy/{course}/quiz/review', [QuizController::class, 'review'])->name('academy.quiz.review');
 
     Route::post('/academy/{course}/certificate', [CertificateController::class, 'issue'])
-        ->name('academy.certificate.issue');
+        ->name('academy.certificate.issue')->middleware('throttle:checkout');
     Route::get('/certificates/{certificate}', [CertificateController::class, 'show'])
         ->name('academy.certificate.show');
     Route::get('/certificates/{certificate}/pdf', [CertificateController::class, 'pdf'])
@@ -317,7 +329,7 @@ Route::middleware('auth')->group(function () {
     // Everything this person has asked us about.
     Route::get('/consultations', [ConsultationController::class, 'index'])->name('consultations.index');
     Route::post('/consultations/{consultation}/pay', [ConsultationController::class, 'pay'])
-        ->name('consultations.pay');
+        ->name('consultations.pay')->middleware('throttle:checkout');
 
     /*
      * Farm setup quotations. Every route here is behind auth, unlike a
@@ -326,11 +338,12 @@ Route::middleware('auth')->group(function () {
      * later.
      */
     Route::get('/farm-setup', [QuotationController::class, 'create'])->name('quotations.create');
-    Route::post('/farm-setup', [QuotationController::class, 'store'])->name('quotations.store');
+    Route::post('/farm-setup', [QuotationController::class, 'store'])->name('quotations.store')
+        ->middleware('throttle:forms');
     Route::get('/farm-setup/requests', [QuotationController::class, 'index'])->name('quotations.index');
     Route::get('/farm-setup/{quotationRequest}', [QuotationController::class, 'show'])->name('quotations.show');
     Route::post('/farm-setup/{quotationRequest}/study-fee', [QuotationController::class, 'payStudyFee'])
-        ->name('quotations.studyFee');
+        ->name('quotations.studyFee')->middleware('throttle:checkout');
     Route::get('/farm-setup/{quotationRequest}/proposal/v{version}.pdf', [QuotationController::class, 'proposal'])
         ->whereNumber('version')
         ->name('quotations.proposal');
@@ -344,30 +357,30 @@ Route::middleware('auth')->group(function () {
 
     // A worker setting themselves up and seeing where their applications got.
     Route::get('/jobs/my-profile', [WorkerProfileController::class, 'edit'])->name('jobs.worker.edit');
-    Route::post('/jobs/my-profile', [WorkerProfileController::class, 'save'])->name('jobs.worker.save');
+    Route::post('/jobs/my-profile', [WorkerProfileController::class, 'save'])->name('jobs.worker.save')->middleware('throttle:forms');
     Route::get('/jobs/my-applications', [WorkerProfileController::class, 'dashboard'])->name('jobs.worker.dashboard');
 
     // An employer setting themselves up, posting work and reading applicants.
     Route::get('/jobs/hiring/profile', [EmployerController::class, 'edit'])->name('jobs.employer.edit');
-    Route::post('/jobs/hiring/profile', [EmployerController::class, 'save'])->name('jobs.employer.save');
+    Route::post('/jobs/hiring/profile', [EmployerController::class, 'save'])->name('jobs.employer.save')->middleware('throttle:forms');
     Route::get('/jobs/hiring', [EmployerController::class, 'dashboard'])->name('jobs.employer.dashboard');
     Route::get('/jobs/hiring/post', [EmployerController::class, 'editListing'])->name('jobs.listings.create');
-    Route::post('/jobs/hiring/post', [EmployerController::class, 'saveListing'])->name('jobs.listings.store');
+    Route::post('/jobs/hiring/post', [EmployerController::class, 'saveListing'])->name('jobs.listings.store')->middleware('throttle:forms');
     Route::get('/jobs/hiring/{listing}/edit', [EmployerController::class, 'editListing'])->name('jobs.listings.edit');
-    Route::post('/jobs/hiring/{listing}/edit', [EmployerController::class, 'saveListing'])->name('jobs.listings.update');
-    Route::post('/jobs/hiring/{listing}/close', [EmployerController::class, 'closeListing'])->name('jobs.listings.close');
+    Route::post('/jobs/hiring/{listing}/edit', [EmployerController::class, 'saveListing'])->name('jobs.listings.update')->middleware('throttle:forms');
+    Route::post('/jobs/hiring/{listing}/close', [EmployerController::class, 'closeListing'])->name('jobs.listings.close')->middleware('throttle:forms');
     Route::get('/jobs/hiring/{listing}/applicants', [JobApplicationController::class, 'index'])->name('jobs.applicants');
 
     // Applying, withdrawing, and moving somebody along.
-    Route::post('/jobs/{listing}/apply', [JobApplicationController::class, 'store'])->name('jobs.apply');
+    Route::post('/jobs/{listing}/apply', [JobApplicationController::class, 'store'])->name('jobs.apply')->middleware('throttle:forms');
     Route::post('/jobs/applications/{application}/withdraw', [JobApplicationController::class, 'withdraw'])
-        ->name('jobs.applications.withdraw');
+        ->name('jobs.applications.withdraw')->middleware('throttle:forms');
     Route::post('/jobs/applications/{application}/status', [JobApplicationController::class, 'updateStatus'])
-        ->name('jobs.applications.status');
+        ->name('jobs.applications.status')->middleware('throttle:forms');
 
     // Rating, which the policy allows only on a hire.
     Route::post('/jobs/applications/{application}/rate', [JobRatingController::class, 'store'])
-        ->name('jobs.applications.rate');
+        ->name('jobs.applications.rate')->middleware('throttle:forms');
 
     /*
      * The worker slug route comes last inside this group, so every literal
@@ -399,9 +412,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/orders/parts/{subOrder}/dispute', [DisputeController::class, 'create'])
         ->name('disputes.create');
     Route::post('/orders/parts/{subOrder}/dispute', [DisputeController::class, 'store'])
-        ->name('disputes.store');
+        ->name('disputes.store')->middleware('throttle:forms');
     Route::get('/disputes/{dispute}', [DisputeController::class, 'show'])->name('disputes.show');
-    Route::post('/disputes/{dispute}/reply', [DisputeController::class, 'reply'])->name('disputes.reply');
+    Route::post('/disputes/{dispute}/reply', [DisputeController::class, 'reply'])->name('disputes.reply')->middleware('throttle:forms');
 });
 
 require __DIR__.'/auth.php';
@@ -437,6 +450,6 @@ Route::get('/jobs/{listing}', [JobBoardController::class, 'show'])->name('jobs.s
 
 Route::get('/consult/{consultation}', [ConsultationController::class, 'show'])->name('consultations.show');
 Route::post('/consult/{consultation}/follow-up', [ConsultationController::class, 'followUp'])
-    ->name('consultations.followup');
+    ->name('consultations.followup')->middleware('throttle:forms');
 Route::get('/consult/{consultation}/report.pdf', [ConsultationController::class, 'reportPdf'])
     ->name('consultations.report');

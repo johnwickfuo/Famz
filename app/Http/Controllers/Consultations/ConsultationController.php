@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Consultations;
 
+use App\Services\Uploads\ImageIngest;
 use App\Documents\ConsultationReportDocument;
 use App\Enums\ConsultationTier;
 use App\Http\Controllers\Controller;
@@ -105,7 +106,7 @@ class ConsultationController extends Controller
         ]);
 
         $paths = collect($request->file('photos') ?? [])
-            ->map(fn ($file): string => $file->store('consultations', 'public'))
+            ->map(fn ($file): string => app(ImageIngest::class)->store($file, 'consultations'))
             ->all();
 
         $consultation = $this->consultations->book(
@@ -241,7 +242,7 @@ class ConsultationController extends Controller
         ]);
 
         $paths = collect($request->file('photos') ?? [])
-            ->map(fn ($file): string => $file->store('consultations/followups', 'public'))
+            ->map(fn ($file): string => app(ImageIngest::class)->store($file, 'consultations/followups'))
             ->all();
 
         try {

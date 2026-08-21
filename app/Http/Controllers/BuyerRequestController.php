@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\Uploads\ImageIngest;
 use App\Enums\BuyerRequestStatus;
 use App\Enums\UnitOfMeasure;
 use App\Models\BuyerRequest;
@@ -166,7 +167,7 @@ class BuyerRequestController extends Controller
         ]);
 
         $paths = collect($request->file('images') ?? [])
-            ->map(fn ($file): string => $file->store('requests', 'public'))
+            ->map(fn ($file): string => app(ImageIngest::class)->store($file, 'requests'))
             ->all();
 
         $buyerRequest = new BuyerRequest($validated);

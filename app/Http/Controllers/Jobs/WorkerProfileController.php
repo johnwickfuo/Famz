@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Jobs;
 
+use App\Services\Uploads\ImageIngest;
 use App\Enums\JobApplicationStatus;
 use App\Enums\PayPeriod;
 use App\Enums\RatingParty;
@@ -123,7 +124,7 @@ class WorkerProfileController extends Controller
             $profile->user_id = $user->getKey();
 
             if ($request->hasFile('photo')) {
-                $profile->photo = $request->file('photo')->store('jobs/workers', 'public');
+                $profile->photo = app(ImageIngest::class)->store($request->file('photo'), 'jobs/workers');
             }
 
             $profile->save();

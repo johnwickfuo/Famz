@@ -1,0 +1,40 @@
+# Nothing under here is ever executed.
+#
+# This directory is symlinked into public/ so that uploads can be served, which
+# means the web server will happily run anything it recognises as a script.
+# Every image is re-encoded on the way in, so nothing executable should reach
+# this directory — but "should" is doing a lot of work in that sentence, and a
+# single missed upload path would turn a photograph into remote code execution.
+#
+# The nginx equivalent is in DEPLOYMENT.md; a server running nginx does not read
+# this file, so both are needed.
+
+<IfModule mod_php.c>
+    php_flag engine off
+</IfModule>
+
+<IfModule mod_php7.c>
+    php_flag engine off
+</IfModule>
+
+<IfModule mod_php8.c>
+    php_flag engine off
+</IfModule>
+
+# php-fpm ignores php_flag, so the handler is removed outright as well.
+<FilesMatch "\.(php|phar|phtml|php3|php4|php5|php7|php8|pl|py|cgi|asp|aspx|sh|bash)$">
+    SetHandler none
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# Anything served from here is a download or an image, never a document the
+# browser should interpret.
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+</IfModule>

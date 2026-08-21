@@ -58,7 +58,12 @@
             <link rel="icon" href="{{ $branding['favicon_url'] }}">
         @endif
 
-        @routes
+        {{--
+            The nonce from SecurityHeaders. Ziggy and Inertia both emit inline
+            script, and under a nonce-based policy an inline script without one
+            simply does not run — which is the whole application not running.
+        --}}
+        @routes(nonce: app('csp-nonce'))
         @vite(['resources/css/app.css', 'resources/js/app.js', "resources/js/Pages/{$page['component']}.vue"])
         @inertiaHead
     </head>
