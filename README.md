@@ -103,7 +103,7 @@ tests in `tests/Driver` cover the production path against a real MySQL and skip
 when none is reachable.
 
 ```bash
-php artisan db:seed --class=DemoCatalogueSeeder   # eight sellers, ~50 listings
+php artisan db:seed --class=DemoSeeder             # the whole platform, all eight modules
 ```
 
 ## Buying: cart, payment and the ledger
@@ -943,6 +943,39 @@ mailbox is not a dead address. Suppressed addresses are listed in
 `/admin → Platform → Undeliverable addresses` with the count on the navigation
 item, and a climbing count is a deliverability problem in progress. Setup is in
 [`deploy/README.md`](deploy/README.md).
+
+## The demonstration environment
+
+```bash
+php artisan migrate --seed
+php artisan db:seed --class=DemoSeeder
+```
+
+One command, all eight modules, and it prints the accounts to sign in as and
+an order to walk them in. Every demonstration account uses the password
+`password`.
+
+Each module is left mid-flight rather than pristine: an order waiting on a
+seller, one in transit, one disputed and frozen, a payout part-way through, an
+offer chain waiting on a buyer, a consultation nobody has answered, a proposal
+on the builder and another already with the client, a course half-finished and
+another with a certificate issued. A demonstration where every row reads "new"
+shows the intake forms and nothing about the work.
+
+**Everything with money in it goes in through the real services** — the cart,
+the order builder, the payment processor, the settlement driver — and the
+seeder runs `ledger:reconcile` at the end and says whether the books agree.
+That matters because rows written by hand would look right on every screen and
+be wrong in the ledger, and the reconciliation report is one of the things
+being demonstrated.
+
+It refuses to run in production: eight invented sellers and a buyer whose
+password is `password` should not be one command away from a live deployment.
+
+The individual seeders can still be run alone —`DemoCatalogueSeeder`,
+`DemoAcademySeeder`, `DemoMentorSeeder`, `DemoTradeSeeder`, `DemoOfferSeeder`,
+`DemoLearningSeeder`, `DemoServiceSeeder`, `DemoJobSeeder` — but the order
+matters, which is why the orchestrator exists.
 
 ## Roles
 
