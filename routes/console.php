@@ -54,3 +54,26 @@ Schedule::command('jobs:expire')->dailyAt('06:00')->withoutOverlapping();
  * cited with a sample size and a date.
  */
 Schedule::command('market:capture-prices')->dailyAt('04:00')->withoutOverlapping();
+
+/*
+ * The nightly reconciliation.
+ *
+ * Runs at 02:30, after the day's escrow releases and before anybody is awake to
+ * be confused by a partial picture. `--alert` means administrators hear about a
+ * discrepancy the same night rather than whenever somebody next opens the admin
+ * panel; a silent run says nothing, because a job that reports success three
+ * hundred times a year is a job whose emails get filtered.
+ *
+ * withoutOverlapping because on a large ledger this can take minutes, and two
+ * copies reading the same tables would only produce the same answer twice.
+ */
+Schedule::command('ledger:reconcile --alert')
+    ->dailyAt('02:30')
+    ->withoutOverlapping()
+    ->onFailure(function (): void {
+        // The reconciliation FAILING is itself worth recording: it means the
+        // safety net did not run, which looks identical to everything being
+        // fine from the outside.
+        \Illuminate\Support\Facades\Log::channel('reconciliation')
+            ->critical('The nightly reconciliation did not complete.');
+    });

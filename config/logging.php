@@ -52,6 +52,22 @@ return [
 
     'channels' => [
 
+        /*
+         * Reconciliation gets its own file, kept far longer than the rest.
+         *
+         * When somebody asks "when did the books first disagree", the answer
+         * has to still exist. Fourteen days of application log is right for
+         * debugging and useless for a financial question, so this keeps a year.
+         */
+        'reconciliation' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/reconciliation.log'),
+            'level' => env('LOG_LEVEL', 'debug'),
+            'days' => 365,
+            'replace_placeholders' => true,
+        ],
+
+
         'stack' => [
             'driver' => 'stack',
             'channels' => explode(',', (string) env('LOG_STACK', 'single')),
