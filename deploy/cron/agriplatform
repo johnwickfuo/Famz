@@ -1,0 +1,13 @@
+# Laravel's scheduler.
+#
+# ONE cron entry, not one per task. Everything the platform runs on a schedule —
+# escrow release, payouts, expiry sweeps, price capture, backups, the nightly
+# reconciliation — is declared in routes/console.php and dispatched by this.
+# Adding a second crontab line for a specific job is how two copies of the same
+# sweep end up running against the same rows.
+#
+# Install with:  crontab -u agriplatform deploy/cron/agriplatform
+#
+# The redirect matters: without it cron mails every minute's output to a local
+# mailbox nobody reads, and fills the disk doing it.
+* * * * * cd /home/agriplatform/web/staging.example.com/public_html && php artisan schedule:run >> /dev/null 2>&1

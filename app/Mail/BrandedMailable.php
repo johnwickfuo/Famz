@@ -4,6 +4,7 @@ namespace App\Mail;
 
 use App\Services\Branding\BrandingService;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\Factory as Queue;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Address;
@@ -22,6 +23,34 @@ use Illuminate\Queue\SerializesModels;
  */
 abstract class BrandedMailable extends Mailable implements ShouldQueue
 {
+    /**
+     * Mail runs on its own queue, and this is not a tidiness preference.
+     *
+     * Payment webhooks, escrow releases and ledger writes share the default
+     * queue. Mail is the slowest thing the platform does and the most likely to
+     * hang — a provider that takes thirty seconds to answer, or times out and
+     * retries, occupies a worker for that whole time. On one shared queue, a
+     * hundred welcome emails put a payment confirmation behind half an hour of
+     * SMTP. The Supervisor config gives this queue its own pool for exactly
+     * that reason.
+     *
+     * Set here rather than as a `$queue` property: Queueable already declares
+     * that property, and redeclaring it with a default is a fatal composition
+     * error rather than an override. This is the single hook the mailer calls
+     * for every queued mailable, so one line covers every send on the platform
+     * — including the ones somebody adds later without reading this.
+     */
+    public function queue(Queue $queue)
+    {
+        if ($this->queue === null) {
+            // Only when nothing more specific was asked for, so a caller that
+            // deliberately routed a mailable elsewhere keeps its choice.
+            $this->onQueue('mail');
+        }
+
+        return parent::queue($queue);
+    }
+
     use Queueable, SerializesModels;
 
     /**

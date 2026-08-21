@@ -53,7 +53,56 @@ class BrandingService
             return $this->memo;
         }
 
-        return $this->memo = Cache::rememberForever(self::CACHE_KEY, fn (): array => $this->build());
+        try {
+            return $this->memo = Cache::rememberForever(self::CACHE_KEY, fn (): array => $this->build());
+        } catch (\Throwable) {
+            /*
+             * The database or the cache store is unreachable.
+             *
+             * This is not a hypothetical: the maintenance page is rendered
+             * exactly when something is down, and it still has to say whose
+             * platform the visitor is looking at. Everything else in the
+             * application is forbidden from naming the company, so the fallback
+             * has to live here rather than at each call site — otherwise every
+             * template grows its own, and the rule stops meaning anything.
+             *
+             * Not memoised, so a transient outage does not pin the degraded
+             * payload in memory for the rest of the request lifetime.
+             */
+            return $this->degraded();
+        }
+    }
+
+    /**
+     * The least this can say while still being true, when settings are
+     * unreachable.
+     *
+     * @return array<string, mixed>
+     */
+    private function degraded(): array
+    {
+        $name = trim((string) config('app.name'));
+
+        return [
+            'name' => $name,
+            'short_name' => $name,
+            'tagline' => null,
+            'email' => null,
+            'phone' => null,
+            'whatsapp' => null,
+            'address' => null,
+            'rc_number' => null,
+            'signatory_name' => null,
+            'signatory_title' => null,
+            // No logo rather than a broken image: the asset lives on a disk
+            // that may be the thing that is down.
+            'logo_url' => null,
+            'logo_dark_url' => null,
+            'favicon_url' => null,
+            'social_links' => [],
+            'has_logo' => false,
+            'initials' => $this->initialsFor($name),
+        ];
     }
 
     public function name(): string

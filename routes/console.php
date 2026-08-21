@@ -2,6 +2,7 @@
 
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schedule;
 
 Artisan::command('inspire', function () {
@@ -74,6 +75,29 @@ Schedule::command('ledger:reconcile --alert')
         // The reconciliation FAILING is itself worth recording: it means the
         // safety net did not run, which looks identical to everything being
         // fine from the outside.
-        \Illuminate\Support\Facades\Log::channel('reconciliation')
+        Log::channel('reconciliation')
             ->critical('The nightly reconciliation did not complete.');
     });
+
+/*
+ * Backups.
+ *
+ * Cleanup first, then the backup itself: running them the other way round
+ * means the disk is at its fullest exactly when a new archive needs room.
+ *
+ * The monitor runs in the morning and complains if the newest backup is older
+ * than it should be — which is the failure that matters, because a backup job
+ * that silently stopped a fortnight ago looks exactly like one that is working.
+ */
+Schedule::command('backup:clean')->dailyAt('01:00')->withoutOverlapping();
+Schedule::command('backup:run')->dailyAt('01:30')->withoutOverlapping();
+Schedule::command('backup:monitor')->dailyAt('08:00');
+
+/*
+ * And a restore test, weekly.
+ *
+ * An untested backup is a hope. This one downloads the newest archive, restores
+ * it into a scratch database and counts what came back — the only way to learn
+ * that the archive is truncated BEFORE the day somebody needs it.
+ */
+Schedule::command('backup:verify-restore')->weeklyOn(1, '03:30')->withoutOverlapping();

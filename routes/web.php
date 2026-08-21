@@ -6,14 +6,15 @@ use App\Http\Controllers\Academy\CourseCheckoutController;
 use App\Http\Controllers\Academy\CoursePlayerController;
 use App\Http\Controllers\Academy\LessonFileController;
 use App\Http\Controllers\Academy\QuizController;
-use App\Http\Controllers\AssistantController;
 use App\Http\Controllers\AccountController;
-use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\AssistantController;
 use App\Http\Controllers\BuyerRequestController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CatalogueController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\Consultations\ConsultationController;
+use App\Http\Controllers\ContactController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DisputeController;
 use App\Http\Controllers\Jobs\EmployerController;
 use App\Http\Controllers\Jobs\JobApplicationController;
@@ -26,21 +27,20 @@ use App\Http\Controllers\Mentorship\MentorDirectoryController;
 use App\Http\Controllers\Mentorship\MentorRegistrationController;
 use App\Http\Controllers\NegotiatedPurchaseController;
 use App\Http\Controllers\NotificationController;
-use App\Http\Controllers\ContactController;
 use App\Http\Controllers\NotificationPreferenceController;
-use App\Http\Controllers\PageController;
-use App\Http\Controllers\RobotsController;
-use App\Http\Controllers\SearchController;
-use App\Http\Controllers\SitemapController;
 use App\Http\Controllers\OfferController;
 use App\Http\Controllers\OrderController;
+use App\Http\Controllers\PageController;
+use App\Http\Controllers\Platform\HealthController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PublicPageController;
 use App\Http\Controllers\Quotations\QuotationController;
+use App\Http\Controllers\RobotsController;
+use App\Http\Controllers\SearchController;
 use App\Http\Controllers\SellerApplicationController;
+use App\Http\Controllers\SitemapController;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
 
 Route::get('/', [PublicPageController::class, 'home'])->name('home');
 Route::get('/s/{section}', [PublicPageController::class, 'section'])->name('sections.show');
@@ -75,6 +75,15 @@ Route::get('/sitemap.xml', SitemapController::class)->name('sitemap');
 Route::get('/robots.txt', RobotsController::class)->name('robots');
 
 /*
+ * The endpoint an uptime monitor watches.
+ *
+ * Deliberately outside the throttle groups: a monitor checking every minute
+ * from one address is exactly the traffic a rate limiter is built to stop, and
+ * an alert that fires because the monitor got 429ed is worse than no alert.
+ */
+Route::get('/health', HealthController::class)->name('health');
+
+/*
  * The pages that explain what this place is.
  *
  * Copy lives in App\Content with every company mention as a {company}
@@ -92,7 +101,7 @@ Route::get('/guides/{role}', [PageController::class, 'guide'])
 
 Route::get('/contact', [ContactController::class, 'create'])->name('contact.create');
 Route::post('/contact', [ContactController::class, 'store'])->name('contact.store')
-        ->middleware('throttle:forms');
+    ->middleware('throttle:forms');
 
 /*
  * One search box, five kinds of answer.
@@ -138,9 +147,9 @@ Route::get('/academy/courses', [AcademyController::class, 'catalogue'])->name('a
  */
 Route::get('/ask', [AssistantController::class, 'show'])->name('assistant.show');
 Route::post('/ask', [AssistantController::class, 'ask'])->name('assistant.ask')
-        ->middleware('throttle:assistant');
+    ->middleware('throttle:assistant');
 Route::post('/ask/reset', [AssistantController::class, 'reset'])->name('assistant.reset')
-        ->middleware('throttle:assistant');
+    ->middleware('throttle:assistant');
 
 /*
  * Consultations with the company itself. Public and guest-friendly on purpose:
@@ -149,7 +158,7 @@ Route::post('/ask/reset', [AssistantController::class, 'reset'])->name('assistan
  */
 Route::get('/consult', [ConsultationController::class, 'create'])->name('consultations.create');
 Route::post('/consult', [ConsultationController::class, 'store'])->name('consultations.store')
-        ->middleware('throttle:forms');
+    ->middleware('throttle:forms');
 
 /*
  * Finding a mentor. Public: somebody should be able to see who is here and
@@ -158,7 +167,7 @@ Route::post('/consult', [ConsultationController::class, 'store'])->name('consult
  */
 Route::get('/mentors', [MentorDirectoryController::class, 'create'])->name('mentors.find');
 Route::post('/mentors/match', [MentorDirectoryController::class, 'match'])->name('mentors.match')
-        ->middleware('throttle:forms');
+    ->middleware('throttle:forms');
 Route::get('/mentors/shortlist/{match}', [MentorDirectoryController::class, 'shortlist'])
     ->name('mentors.shortlist');
 

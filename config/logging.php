@@ -1,5 +1,6 @@
 <?php
 
+use Monolog\Formatter\JsonFormatter;
 use Monolog\Handler\NullHandler;
 use Monolog\Handler\StreamHandler;
 use Monolog\Handler\SyslogUdpHandler;
@@ -67,6 +68,27 @@ return [
             'replace_placeholders' => true,
         ],
 
+        /*
+         * Structured logging: one JSON object per line.
+         *
+         * The difference this makes shows up at three in the morning. A line
+         * reading "Payment failed for order 41" can only be found by guessing
+         * the wording; the same event as JSON can be filtered by order, by
+         * user, by level, and counted. Every log line carries the request id,
+         * the authenticated user and the route (see AddLogContext), so one
+         * failure can be followed across the queue worker that finished it.
+         *
+         * Kept alongside the human-readable channel rather than replacing it —
+         * `tail -f` on JSON is miserable, and both cost nothing.
+         */
+        'structured' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/structured.log'),
+            'level' => env('LOG_LEVEL', 'debug'),
+            'days' => env('LOG_DAILY_DAYS', 14),
+            'formatter' => JsonFormatter::class,
+            'replace_placeholders' => true,
+        ],
 
         'stack' => [
             'driver' => 'stack',

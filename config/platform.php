@@ -13,6 +13,21 @@ return [
     |
     */
 
+    /*
+    |--------------------------------------------------------------------------
+    | Health check token
+    |--------------------------------------------------------------------------
+    |
+    | /health answers "ok" or "degraded" to anybody, which is all an uptime
+    | monitor needs. Pass ?token= this value to also get which dependency is
+    | failing and why — useful to whoever is on call, and useful in a different
+    | way to somebody probing the host, which is why it is not public. Leave it
+    | empty and the detail is never shown.
+    |
+    */
+
+    'health_token' => env('HEALTH_CHECK_TOKEN'),
+
     'super_admin' => [
         'name' => env('SUPER_ADMIN_NAME', 'Platform Administrator'),
         'email' => env('SUPER_ADMIN_EMAIL'),
