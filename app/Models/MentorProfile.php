@@ -267,6 +267,11 @@ class MentorProfile extends Model
 
     public function scopeOwnedBy(Builder $query, User|int|null $user): Builder
     {
-        return $query->where('user_id', $user instanceof User ? $user->getKey() : $user);
+        // Fails closed. A null would otherwise compile to `IS NULL` rather than
+        // to a comparison matching nothing — see the note on Consultation.
+        return $query->where(
+            'user_id',
+            $user instanceof User ? $user->getKey() : ($user ?? 0),
+        );
     }
 }

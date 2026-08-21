@@ -232,7 +232,11 @@ class MentorshipEngagement extends Model
 
     public function scopeOwnedBy(Builder $query, User|int|null $user): Builder
     {
-        return $query->where('client_id', $user instanceof User ? $user->getKey() : $user);
+        // Fails closed, like every other ownership scope here.
+        return $query->where(
+            'client_id',
+            $user instanceof User ? $user->getKey() : ($user ?? 0),
+        );
     }
 
     public function scopeLive(Builder $query): Builder

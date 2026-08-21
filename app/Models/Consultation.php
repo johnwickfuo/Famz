@@ -274,7 +274,22 @@ class Consultation extends Model
 
     public function scopeOwnedBy(Builder $query, User|int|null $user): Builder
     {
-        return $query->where('user_id', $user instanceof User ? $user->getKey() : $user);
+        /*
+         * `?? 0`, and this one is not decoration.
+         *
+         * Laravel compiles `where('user_id', null)` to `WHERE user_id IS NULL`,
+         * not to a comparison that matches nothing — and a consultation booked
+         * by a guest HAS a null user_id. So a null here would have returned
+         * every guest booking on the platform, each carrying a name, a phone
+         * number, a description of somebody's farm and their photographs.
+         *
+         * Nothing calls it that way today. It fails closed anyway, because the
+         * next caller should not have to know this.
+         */
+        return $query->where(
+            'user_id',
+            $user instanceof User ? $user->getKey() : ($user ?? 0),
+        );
     }
 
     /**
