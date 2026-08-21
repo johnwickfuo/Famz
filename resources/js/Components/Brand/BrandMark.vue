@@ -18,7 +18,7 @@ const props = defineProps({
     compact: { type: Boolean, default: false },
 });
 
-const { name, logoUrl, logoDarkUrl, hasLogo, initials, wordmarkClass } = useBranding();
+const { name, shortName, logoUrl, logoDarkUrl, hasLogo, initials, wordmarkClass } = useBranding();
 
 const sizes = {
     sm: { label: 'px-2 py-1 gap-1.5', word: 'text-xs', logo: 'h-5', mark: 'text-xs' },
@@ -30,6 +30,21 @@ const dimensions = computed(() => sizes[props.size] ?? sizes.md);
 
 /** On a dark ground the dark-mode logo is the right file to reach for. */
 const source = computed(() => (props.tone === 'light' ? logoDarkUrl.value : logoUrl.value));
+
+/*
+ * The lockup shows the short name, falling back to the full one.
+ *
+ * A registered cooperative name runs to ninety characters, and at 360px that
+ * wraps to eight lines and takes half the screen before anybody has seen a
+ * product. `short_name` is the setting that exists for exactly this, and it was
+ * being collected and never read. The full legal name still appears in the
+ * footer, next to the RC number, which is where it belongs.
+ */
+const wordmark = computed(() =>
+    // Visible, it is the short name. Read aloud behind a logo, it is the full
+    // one — a screen reader should hear who this is, not the abbreviation.
+    hasLogo.value && source.value ? name.value : shortName.value,
+);
 </script>
 
 <template>
@@ -56,8 +71,16 @@ const source = computed(() => (props.tone === 'light' ? logoDarkUrl.value : logo
 
         <span
             v-if="!compact"
-            :class="[wordmarkClass, dimensions.word, hasLogo && source ? 'sr-only' : '']"
-        >{{ name }}</span>
+            :class="[
+                wordmarkClass,
+                dimensions.word,
+                // Clamped in both directions. Three lines is the most a
+                // wordmark may take on a phone before it pushes the page below
+                // the fold; the width cap stops a long name on a wide screen
+                // from squeezing the search field down to nothing.
+                hasLogo && source ? 'sr-only' : 'line-clamp-3 max-w-[14rem] sm:max-w-[20rem]',
+            ]"
+        >{{ wordmark }}</span>
 
         <span v-if="compact && (!hasLogo || !source)" class="sr-only">{{ name }}</span>
     </span>

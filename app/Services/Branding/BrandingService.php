@@ -262,7 +262,7 @@ class BrandingService
             'phone' => $this->settings->string(BrandingKey::Phone->value),
             'whatsapp' => $this->settings->string(BrandingKey::Whatsapp->value),
             'address' => $this->settings->string(BrandingKey::Address->value),
-            'rc_number' => $this->settings->string(BrandingKey::RcNumber->value),
+            'rc_number' => $this->rcNumberFor($this->settings->string(BrandingKey::RcNumber->value)),
             'signatory_name' => $this->settings->string(BrandingKey::SignatoryName->value),
             'signatory_title' => $this->settings->string(BrandingKey::SignatoryTitle->value),
             'logo_url' => $logo,
@@ -272,6 +272,25 @@ class BrandingService
             'has_logo' => $logo !== null,
             'initials' => $this->initialsFor($name),
         ];
+    }
+
+    /**
+     * The registration number without its prefix.
+     *
+     * Every surface that shows this writes "RC" in front of it, and an
+     * administrator handed a field labelled "RC number" types the prefix in
+     * about half the time. Stripping it here means the footer shows the prefix
+     * once rather than twice, whichever way the number was entered.
+     */
+    private function rcNumberFor(?string $value): ?string
+    {
+        $value = trim((string) $value);
+
+        if ($value === '') {
+            return null;
+        }
+
+        return trim(preg_replace('/^RC[\s:.-]*/i', '', $value)) ?: null;
     }
 
     /**

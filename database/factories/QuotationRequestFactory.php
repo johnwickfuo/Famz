@@ -2,8 +2,11 @@
 
 namespace Database\Factories;
 
+use App\Enums\QuotationPowerSituation;
 use App\Enums\QuotationProjectType;
 use App\Enums\QuotationRequestStatus;
+use App\Enums\QuotationScope;
+use App\Enums\QuotationWaterSource;
 use App\Models\QuotationRequest;
 use App\Support\Nigeria;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -33,9 +36,17 @@ class QuotationRequestFactory extends Factory
             'budget_range_min_kobo' => 200_000_000,
             'budget_range_max_kobo' => 500_000_000,
             'currency' => 'NGN',
-            'scope_wanted' => fake()->paragraph(2),
-            'power_situation' => fake()->randomElement(\App\Enums\QuotationPowerSituation::cases()),
-            'water_source' => fake()->randomElement(\App\Enums\QuotationWaterSource::cases()),
+            // A list of enum values, because the model casts this to an array.
+            // A string here survives the insert and then blows up whichever
+            // screen first tries to label it.
+            'scope_wanted' => collect(QuotationScope::cases())
+                ->shuffle()
+                ->take(fake()->numberBetween(2, 4))
+                ->map(fn (QuotationScope $scope): string => $scope->value)
+                ->values()
+                ->all(),
+            'power_situation' => fake()->randomElement(QuotationPowerSituation::cases()),
+            'water_source' => fake()->randomElement(QuotationWaterSource::cases()),
             'status' => QuotationRequestStatus::Submitted,
         ];
     }

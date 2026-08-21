@@ -41,14 +41,50 @@ function brandLiteralPatterns(): array
 }
 
 /**
+ * Sample data and tests are exempt from both scans.
+ *
+ * A factory that generates seller names has to generate something that looks
+ * like a company, and the tests below set a company name deliberately in order
+ * to assert it propagates. Neither is a surface a rename needs to reach.
+ */
+function isSampleDataOrTest(string $path): bool
+{
+    foreach (['database/seeders', 'database/factories', 'tests'] as $prefix) {
+        if (str_starts_with($path, $prefix)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/**
  * @return array<int, SplFileInfo>
  */
 function scannedSourceFiles(): array
 {
+    /*
+     * The whole repository, not three directories.
+     *
+     * The earlier version scanned app/, resources/ and config/, which is where
+     * a name is most likely to leak and not where it is hardest to notice. A
+     * name written into a route file, a migration default, a deployment script
+     * or the README is just as much a rename that will not happen — and nobody
+     * would think to look there.
+     */
     $finder = (new Finder)
         ->files()
-        ->in([base_path('app'), base_path('resources'), base_path('config')])
-        ->name(['*.php', '*.blade.php', '*.vue', '*.js', '*.ts', '*.css'])
+        ->in(base_path())
+        /*
+         * public/ holds published vendor assets and the compiled bundle —
+         * other people's code and generated output, neither of which a rename
+         * has to reach.
+         */
+        ->exclude(['vendor', 'node_modules', 'storage', 'public', 'bootstrap/cache', '.git'])
+        ->name(['*.php', '*.blade.php', '*.vue', '*.js', '*.ts', '*.css', '*.md', '*.json', '*.yml', '*.yaml', '*.conf', '*.sh'])
+        // Lock files are generated, enormous, and full of package names that
+        // trip the proper-noun patterns.
+        ->notName(['package-lock.json', 'composer.lock'])
         ->notPath('fonts')
         ->ignoreDotFiles(true);
 
@@ -63,8 +99,7 @@ it('has no brand-shaped literal in app, resources or config', function () {
     foreach (scannedSourceFiles() as $file) {
         $path = str_replace(base_path().DIRECTORY_SEPARATOR, '', $file->getRealPath());
 
-        // Sample data has to say something, and the tests set a name on purpose.
-        if (str_starts_with($path, 'database/seeders') || str_starts_with($path, 'tests')) {
+        if (isSampleDataOrTest($path)) {
             continue;
         }
 
@@ -103,8 +138,10 @@ it('reads the application name only through BrandingService', function () {
         $path = str_replace(base_path().DIRECTORY_SEPARATOR, '', $file->getRealPath());
 
         if (in_array($path, $allowed, true)
-            || str_starts_with($path, 'tests')
-            || str_starts_with($path, 'config/')) {
+            || isSampleDataOrTest($path)
+            || str_starts_with($path, 'config/')
+            // Documentation has to be able to name the variable it documents.
+            || str_ends_with($path, '.md')) {
             continue;
         }
 
