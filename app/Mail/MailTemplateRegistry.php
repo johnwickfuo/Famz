@@ -77,6 +77,62 @@ class MailTemplateRegistry
                 'transactional' => true,
             ],
             [
+                'key' => 'seller-approved',
+                'class' => SellerApprovedMail::class,
+                'name' => __('Seller approved'),
+                'description' => __('Sent when an application to sell is accepted.'),
+                'transactional' => true,
+            ],
+            [
+                'key' => 'seller-more-info',
+                'class' => SellerMoreInfoMail::class,
+                'name' => __('Seller: more information needed'),
+                'description' => __('Sent when an application needs something before it can be decided.'),
+                'transactional' => true,
+            ],
+            [
+                'key' => 'seller-rejected',
+                'class' => SellerRejectedMail::class,
+                'name' => __('Seller rejected'),
+                'description' => __('Sent when an application to sell is turned down.'),
+                'transactional' => true,
+            ],
+            [
+                'key' => 'offer-countered',
+                'class' => OfferCounteredMail::class,
+                'name' => __('Offer countered'),
+                'description' => __('Sent when the other side answers an offer with a different price.'),
+                'transactional' => true,
+            ],
+            [
+                'key' => 'offer-rejected',
+                'class' => OfferRejectedMail::class,
+                'name' => __('Offer rejected'),
+                'description' => __('Sent when an offer is declined outright.'),
+                'transactional' => true,
+            ],
+            [
+                'key' => 'buyer-request-expiring',
+                'class' => BuyerRequestExpiringMail::class,
+                'name' => __('Wanted ad closing soon'),
+                'description' => __('Sent a few days before a request drops off the board.'),
+                'transactional' => true,
+            ],
+            [
+                'key' => 'dispute-raised',
+                'class' => DisputeRaisedMail::class,
+                'name' => __('Dispute raised'),
+                'description' => __('Sent to the other party when a dispute is opened. Time-critical: the reference is in the subject.'),
+                'transactional' => true,
+            ],
+            [
+                'key' => 'withdrawal-paid',
+                'class' => WithdrawalPaidMail::class,
+                'name' => __('Payout paid'),
+                'description' => __('Sent when money has actually left for a seller\'s bank. The amount is in the subject.'),
+                'transactional' => true,
+            ],
+            [
                 'key' => 'announcement',
                 'class' => PlatformAnnouncementMail::class,
                 'name' => __('Platform announcement'),
@@ -184,6 +240,24 @@ class MailTemplateRegistry
             QuotationStudyFeeDueMail::class => new QuotationStudyFeeDueMail($this->sampleQuotationRequest($user)),
             QuotationSentMail::class => new QuotationSentMail($this->sampleQuotation($user)),
             QuotationExpiredMail::class => new QuotationExpiredMail($this->sampleQuotation($user, lapsed: true)),
+            SellerApprovedMail::class => new SellerApprovedMail($this->sampleSeller($user)),
+            SellerMoreInfoMail::class => new SellerMoreInfoMail(
+                $this->sampleSeller($user),
+                __('Please send a clearer photograph of the CAC certificate — the one attached is cut off.'),
+            ),
+            SellerRejectedMail::class => new SellerRejectedMail(
+                $this->sampleSeller($user),
+                __('We could not confirm the business details given.'),
+            ),
+            OfferCounteredMail::class => new OfferCounteredMail($this->sampleOffer($user), '/offers'),
+            OfferRejectedMail::class => new OfferRejectedMail(
+                $this->sampleOffer($user),
+                __('That is below what the feed costs us.'),
+                '/offers',
+            ),
+            BuyerRequestExpiringMail::class => new BuyerRequestExpiringMail($this->sampleRequest($user), 3),
+            DisputeRaisedMail::class => new DisputeRaisedMail($this->sampleDispute($user), '/disputes'),
+            WithdrawalPaidMail::class => new WithdrawalPaidMail($this->sampleWithdrawal($user), '/seller/earnings'),
             PlatformAnnouncementMail::class => new PlatformAnnouncementMail(
                 __('A note from {company}'),
                 __("This is a preview of how an announcement from {company} looks.\n\nAnything an administrator writes here is sent with the platform's own branding, and {company_short} is filled in from the settings screen."),
@@ -290,6 +364,75 @@ class MailTemplateRegistry
         ]);
 
         return $consultation;
+    }
+
+    /**
+     * A seller profile that exists only for the duration of a preview.
+     */
+    private function sampleSeller(User $user): \App\Models\SellerProfile
+    {
+        $seller = new \App\Models\SellerProfile;
+        $seller->forceFill([
+            'business_name' => __('Sample Feeds and Equipment'),
+            'slug' => 'sample-feeds-and-equipment',
+            'state' => 'Oyo',
+        ]);
+
+        $seller->setRelation('user', $user);
+
+        return $seller;
+    }
+
+    /**
+     * A dispute that exists only for the duration of a preview.
+     */
+    private function sampleDispute(User $user): \App\Models\Dispute
+    {
+        $subOrder = new \App\Models\SubOrder;
+        $subOrder->forceFill([
+            'reference' => 'SO-'.now()->format('ymd').'-'.Str::upper(Str::random(6)),
+            'total_kobo' => 4_200_000,
+        ]);
+
+        $dispute = new \App\Models\Dispute;
+        $dispute->forceFill([
+            'reason' => \App\Enums\DisputeReason::QualityPoor,
+            'description' => __('Twelve of the forty bags were torn and the feed had caked.'),
+            'status' => \App\Enums\DisputeStatus::Open,
+            'created_at' => now(),
+        ]);
+
+        $dispute->setRelation('subOrder', $subOrder);
+        $dispute->setRelation('raisedBy', $user);
+
+        return $dispute;
+    }
+
+    /**
+     * A paid withdrawal that exists only for the duration of a preview.
+     */
+    private function sampleWithdrawal(User $user): \App\Models\Withdrawal
+    {
+        $account = new \App\Models\PayoutAccount;
+        $account->forceFill([
+            'account_name' => $user->displayName(),
+            'account_number' => '0123456789',
+            'bank_name' => __('Sample Bank'),
+        ]);
+
+        $withdrawal = new \App\Models\Withdrawal;
+        $withdrawal->forceFill([
+            'reference' => 'WD-'.now()->format('ymd').'-'.Str::upper(Str::random(6)),
+            'amount_kobo' => 8_750_000,
+            'currency' => 'NGN',
+            'status' => \App\Enums\WithdrawalStatus::Paid,
+            'processed_at' => now(),
+        ]);
+
+        $withdrawal->setRelation('user', $user);
+        $withdrawal->setRelation('payoutAccount', $account);
+
+        return $withdrawal;
     }
 
     /**

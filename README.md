@@ -65,8 +65,12 @@ three ways:
 Writing a branding setting fires `App\Events\SettingsChanged`, which drops the
 branding cache immediately, so a rename is live on the next request.
 
-`tests/Feature/NoHardcodedBrandTest.php` fails the build if a brand-shaped
-literal appears in `app/`, `resources/` or `config/`.
+`tests/Feature/Branding/NoHardcodedBrandTest.php` fails the build if a
+brand-shaped literal appears **anywhere in the repository**, and
+`HostileCompanyNameTest.php` renders every branded surface — pages, all
+twenty-odd emails, receipts, certificates, quotation proposals, the chatbot
+disclaimer and the error pages — with a ninety-four-character name and a
+two-letter one.
 
 ## Selling and the catalogue
 
@@ -715,6 +719,221 @@ misrepresent what happens next — somebody would think they had ordered a farm.
 The client's page offers the proposal, the PDF, the validity countdown and a
 phone number. An administrator can mark a request won or lost **for reporting
 only**.
+
+## The jobs board
+
+Farms looking for workers, workers looking for farms. **No money passes through
+the platform**, the company is not the employer, and there is no verification
+step — all three are stated on the board itself, because a jobs board that looks
+like it vouches for the parties is a jobs board people will hold responsible.
+
+A worker's phone number is never in a response body until an employer with an
+open listing asks for it, and every reveal is logged and rate-limited. The
+worker directory is excluded from the sitemap and blocked in `robots.txt` for
+the same reason: a page of farm workers' contact details is a page worth
+scraping.
+
+Matching is deterministic — skills, state, and availability — not AI. An
+explanation a person can argue with beats a better score they cannot.
+
+## The farming assistant
+
+Free, no account needed, English or Pidgin. `App\Services\Ai` wraps a provider
+behind `AiProvider`, with a deterministic fallback so the feature degrades to
+published feeding tables rather than disappearing when the key is missing or the
+quota is spent.
+
+Two rules shape it. It **states the source of every figure** — a published
+feeding table, or what sellers are actually listing on this marketplace right
+now — and it **invents no numbers**. It will not give drug names, dosages or
+treatment schedules; anything touching animal health is referred to a vet who
+has seen the animals. The disclaimer above the input is not dismissable and has
+no prop to turn it off.
+
+## Settings, and what each key controls
+
+Everything below is edited in `/admin → Settings` and read through
+`App\Services\Settings\SettingsService`, which caches each key and drops the
+cache on write. **None of these is an environment variable**: they are things
+the client changes about their own business, and a redeploy to change a
+commission rate is a redeploy nobody will ask for twice.
+
+### Company & branding
+
+| Key | Controls |
+|---|---|
+| `company_name` | The name everywhere: header, footer, page titles, Open Graph tags, every email, receipts, certificates, quotation proposals, the assistant's disclaimer |
+| `company_short_name` | The header and footer lockup. Falls back to `company_name`. Set it when the registered name is long — a ninety-character name in a lockup pushes a phone screen below the fold |
+| `company_tagline` | The line under the wordmark on the home page |
+| `company_email`, `company_phone`, `company_whatsapp` | Contact details in the footer, on error pages, and in the reply-to of transactional mail |
+| `company_address`, `company_rc_number` | The legal block in the footer and on documents. `RC` is written by the template — typing the prefix into the field is stripped |
+| `company_logo`, `company_logo_dark`, `company_favicon` | Uploaded images. Without a logo the name is set in the display face instead, so the site is never unbranded |
+| `company_signatory_name`, `company_signatory_title` | Whose name and title appear on certificates and proposals |
+| `company_social_links` | The footer's social row. Empty values are dropped rather than rendered as dead links |
+
+### Platform rules
+
+| Key | Controls |
+|---|---|
+| `marketplace_commission_percent` | The platform's cut of a marketplace sale. Applied in integer kobo; the seller's share is the remainder, so nothing is lost to rounding |
+| `mentorship_commission_percent` | The same, for a mentorship engagement |
+| `settlement_driver` | `escrow` or `instant` — see below |
+| `escrow_auto_release_days` | How long a seller's money is held after delivery before it releases on its own |
+| `dispute_window_days` | How long after delivery a buyer may still raise a dispute |
+| `payout_mode` | `manual` (an administrator approves each withdrawal) or `automatic` |
+| `payout_schedule_day` | Which day of the week automatic payouts run |
+| `minimum_withdrawal_amount` | The floor on a withdrawal request |
+| `delivery_quotes_enabled` | Whether sellers quote delivery per order rather than using fixed rates |
+| `active_payment_gateway` | `paystack` or `flutterwave`. Which gateway checkout uses — a setting, not an environment variable, so switching provider does not need a deploy |
+
+### Offers and requests
+
+| Key | Controls |
+|---|---|
+| `offer_expiry_hours` | How long an offer stands before it lapses |
+| `negotiated_checkout_hours` | How long the private checkout link from an accepted offer stays valid |
+| `buyer_request_expiry_days` | How long a wanted ad stays on the board |
+| `buyer_request_warning_days` | How long before that the poster is warned |
+
+### Consultations
+
+| Key | Controls |
+|---|---|
+| `consultation_standard_response_hours` | The promise shown on the booking form, counted in working hours |
+| `consultation_urgent_response_hours` | The same, for an urgent booking |
+| `consultation_working_days`, `consultation_working_hours_start`, `consultation_working_hours_end` | The clock those promises are counted against — a Friday evening booking is not late on Saturday morning |
+| `consultation_followup_days` | How long the follow-up thread stays open after a report is delivered |
+
+### Farm setup quotations
+
+| Key | Controls |
+|---|---|
+| `quotation_study_fee` | The fee for a site study, credited against the project if the quotation is accepted |
+| `quote_validity_days` | How long a sent proposal stands before it lapses |
+
+### Mentorship
+
+| Key | Controls |
+|---|---|
+| `mentorship_confirmation_days` | How long a mentor has to confirm an engagement |
+| `mentorship_invoice_grace_days` | How long a client has to pay before the engagement lapses |
+| `mentorship_dispute_window_days` | How long after an engagement a dispute may be raised |
+
+### Assistant and jobs
+
+| Key | Controls |
+|---|---|
+| `ai_user_daily_messages` | How many assistant messages one signed-in person may send in a day |
+| `ai_guest_daily_messages` | The same for somebody with no account. The assistant is deliberately usable without signing up, so this is the number that stops it being free compute for anybody who finds it |
+| `ai_ip_hourly_messages` | A ceiling per address, which is what actually catches a script |
+| `ai_daily_token_budget` | The platform-wide ceiling. Reaching it degrades the assistant to its deterministic fallback rather than sending a surprise invoice |
+| `ai_answer_cache_hours` | How long an answer to the same question is reused |
+| `ai_price_minimum_sample` | How many live listings a market price must be drawn from before the assistant will quote it. Below this it says it does not have enough data rather than quoting one seller's price as the market |
+| `ai_price_max_age_days` | How stale a listing may be and still count toward that price |
+| `worker_contact_daily_limit` | How many workers' phone numbers one employer may reveal in a day. The number that stops a jobs board becoming a scraped contact list |
+
+## Setting the company name and logo
+
+1. Sign in at `/admin` as an administrator.
+2. **Settings → Company & branding**.
+3. Type the name into **Company name**. If it is long, put a short form in
+   **Short name** — the header uses that one.
+4. Upload **Logo** (and **Logo (dark)** if the light one disappears on the dark
+   header). SVG or PNG; images are re-encoded and stripped of EXIF on the way in.
+5. Save.
+
+The change is live on the next request — saving fires `SettingsChanged`, which
+drops the branding cache. There is no deploy step and no cache command to run.
+
+To check it took everywhere, use **Settings → Mail → Send a test email**, which
+renders any transactional template with the current branding and sends it to
+`MAIL_TEST_RECIPIENT`.
+
+## Switching the settlement driver
+
+`settlement_driver` decides what happens to a buyer's money at the moment a
+payment succeeds.
+
+| Driver | What happens |
+|---|---|
+| `escrow` | The money is held by the platform and credited to the seller as **held**. It becomes withdrawable `escrow_hold_days` after the buyer marks delivery, or immediately if the buyer confirms early. A dispute freezes it. |
+| `instant` | The seller is credited as **released** at payment. Faster for the seller, and it removes the platform's leverage in a dispute — a refund then has to claw back money that may already have been withdrawn. |
+
+Change it in **Settings → Platform rules**. Both drivers implement
+`App\Contracts\SettlementDriver`, so adding a third is a class and a case, not a
+change to checkout.
+
+**Changing it does not touch money already in the ledger.** Orders paid under
+`escrow` keep their hold and release on their own schedule; the new driver
+applies to payments that arrive after the change. That is deliberate — a switch
+that retroactively released every held balance would be an irreversible payout
+triggered by a dropdown.
+
+## Rotating gateway keys
+
+Do this in the order below. Reversing steps 2 and 3 leaves a window where the
+platform signs with a key the gateway no longer honours, and payments fail.
+
+1. **Generate the new keys** in the Paystack or Flutterwave dashboard. Both let
+   the old and new keys work at once for a period — that overlap is what makes
+   this safe.
+2. **Put the new values in `.env`** on the server (`PAYSTACK_SECRET_KEY`,
+   `PAYSTACK_PUBLIC_KEY`, or `FLUTTERWAVE_SECRET_KEY`,
+   `FLUTTERWAVE_PUBLIC_KEY`, `FLUTTERWAVE_WEBHOOK_HASH`) and run
+   `php artisan config:cache && php artisan queue:restart`. **The queue restart
+   is not optional** — a running worker holds the old configuration in memory
+   and will keep using the old key until it is recycled.
+3. **Re-register the webhook secret** with the gateway if it changed.
+   Flutterwave verifies with a shared secret in a header, so its value must
+   match `FLUTTERWAVE_WEBHOOK_HASH` exactly.
+4. **Revoke the old key** in the dashboard.
+5. **Check `ledger:reconcile`** the next morning. Webhooks that failed their
+   signature check appear there as a warning, which is exactly what a rotation
+   done in the wrong order looks like.
+
+Never commit a key. `tests/Feature/Platform/EnvironmentDocumentationTest.php`
+fails if a secret-shaped line in `.env.example` is non-empty.
+
+## Deployment
+
+Full server provisioning, the deploy script, and the mail deliverability
+runbook are in [`deploy/README.md`](deploy/README.md). The short version:
+
+```bash
+./deploy/deploy.sh
+```
+
+which pulls, installs without dev dependencies, builds assets, migrates,
+rebuilds every cache and restarts the queue workers — in that order, because
+migrating before the new code is in place runs the old application against the
+new schema.
+
+Two things the script cannot do for you:
+
+- **Register the webhook URLs** with Paystack and Flutterwave. An order only
+  moves to paid when that webhook lands; without it a buyer pays and nothing
+  happens.
+- **Verify the sending domain** and publish SPF, DKIM and DMARC. Transactional
+  mail from an unverified domain goes to spam, which on this platform means a
+  seller never hears that they have an order.
+
+## Operations
+
+| Job | When | What it is for |
+|---|---|---|
+| `ledger:reconcile --alert` | 02:30 daily | **The most important job on the platform.** Checks every balance against its own entries, that nobody is negative, that every paid order credited somebody, and that the gateway's record matches ours. Alerts every administrator on a discrepancy and stays silent otherwise |
+| `backup:run` | 01:30 daily | Database and uploads to off-server storage |
+| `backup:verify-restore` | 03:30 Mondays | Restores the newest archive into a scratch database and counts what came back. An untested backup is a hope |
+| `backup:monitor` | 08:00 daily | Notices a backup job that stopped silently |
+| `offers:expire`, `quotations:expire`, `jobs:expire` | daily | State machines move on their own |
+
+Queue workers run under Supervisor with **two pools** — `default` and `mail`.
+They are separate so a mail provider that hangs for thirty seconds cannot put a
+payment webhook behind however much mail is in front of it.
+
+`/health` checks the database, cache, storage and queue, and answers `503` when
+one is down. Point an uptime monitor at it. Add `?token=` (`HEALTH_CHECK_TOKEN`)
+to see which dependency failed.
 
 ## Roles
 
