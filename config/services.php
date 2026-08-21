@@ -19,6 +19,26 @@ return [
         'key' => env('POSTMARK_TOKEN'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Mail bounce and complaint webhook
+    |--------------------------------------------------------------------------
+    |
+    | The shared secret the provider must present, as ?token= or an
+    | X-Webhook-Token header. Of the four supported providers only two sign
+    | their payloads, and they sign them differently; a secret in the URL is
+    | what all four can do.
+    |
+    | Leave it empty and the endpoint refuses everything. An open suppression
+    | endpoint is worse than none: anybody could post a rival seller's address
+    | and stop the platform writing to them.
+    |
+    */
+
+    'mail_webhook' => [
+        'secret' => env('MAIL_WEBHOOK_SECRET'),
+    ],
+
     'resend' => [
         'key' => env('RESEND_KEY'),
     ],

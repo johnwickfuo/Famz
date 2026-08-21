@@ -935,6 +935,15 @@ payment webhook behind however much mail is in front of it.
 one is down. Point an uptime monitor at it. Add `?token=` (`HEALTH_CHECK_TOKEN`)
 to see which dependency failed.
 
+**Deliverability.** The mail provider posts bounces and complaints to
+`/webhooks/mail/<provider>`, and a hard bounce or a spam complaint stops the
+platform writing to that address — at the mailer, so a job queued before the
+bounce and retried after it is stopped too. Soft bounces are ignored: a full
+mailbox is not a dead address. Suppressed addresses are listed in
+`/admin → Platform → Undeliverable addresses` with the count on the navigation
+item, and a climbing count is a deliverability problem in progress. Setup is in
+[`deploy/README.md`](deploy/README.md).
+
 ## Roles
 
 One `users` table. A user may hold any number of roles at once — they are

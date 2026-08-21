@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Listeners\StopMailToSuppressedAddresses;
 use App\Models\BuyerRequest;
 use App\Models\Category;
 use App\Models\Dispute;
@@ -23,13 +24,15 @@ use App\Policies\SellerProfilePolicy;
 use App\Policies\SubOrderPolicy;
 use App\Policies\WorkerProfilePolicy;
 use App\Services\Ai\AiProvider;
-use App\Services\Catalogue\CatalogueCache;
-use App\Services\Platform\Seo;
 use App\Services\Ai\GeminiProvider;
 use App\Services\Ai\GeminiTagResolver;
 use App\Services\Ai\NullAiProvider;
 use App\Services\Ai\NullTagResolver;
 use App\Services\Ai\TagResolver;
+use App\Services\Catalogue\CatalogueCache;
+use App\Services\Platform\Seo;
+use Illuminate\Mail\Events\MessageSending;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\Vite;
@@ -77,6 +80,19 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Vite::prefetch(concurrency: 3);
+
+        /*
+         * Never write to an address the provider has told us is dead.
+         *
+         * Registered on MessageSending rather than in each notifier, because
+         * every route to the mailer passes through it — a Mailable, a
+         * notification, a queued job retried three days later, and whatever is
+         * added next by somebody who does not know this exists.
+         */
+        Event::listen(
+            MessageSending::class,
+            StopMailToSuppressedAddresses::class,
+        );
 
         /*
          * HTTPS everywhere but local.

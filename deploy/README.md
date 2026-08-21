@@ -326,12 +326,45 @@ reads only the subject:
 
 ### Bounces and complaints
 
-Register the provider's bounce and complaint webhook. A hard bounce must flag
-the address on the user record; without it the queue retries a dead address
-forever, and the provider's reputation score — shared across every message the
-platform sends — falls for everybody.
+Register the provider's bounce and complaint webhook:
 
----
+```
+https://<domain>/webhooks/mail/<provider>?token=<MAIL_WEBHOOK_SECRET>
+```
+
+where `<provider>` is `resend`, `postmark`, `brevo` or `mailgun`. Generate the
+secret with `openssl rand -hex 32` and put it in `.env` as
+`MAIL_WEBHOOK_SECRET`. **Leave it empty and the endpoint refuses everything** —
+an open suppression endpoint would let anybody stop the platform writing to a
+rival seller.
+
+Which events each provider must be subscribed to:
+
+| Provider | Subscribe to |
+|---|---|
+| Resend | `email.bounced`, `email.complained` |
+| Postmark | Hard bounce, Spam complaint, Bad email address |
+| Brevo | `hard_bounce`, `blocked`, `invalid_email`, `spam` |
+| Mailgun | `failed` (permanent), `complained` |
+
+A hard bounce or a spam complaint suppresses the address: the platform stops
+writing to it at the mailer, so a job queued before the bounce and retried
+three days after it is stopped too. **Soft bounces are ignored** — a full
+mailbox is not a dead address, and suppressing on one would lock somebody out
+of their own receipts because their inbox was full on a Tuesday.
+
+Suppressed addresses appear in `/admin → Platform → Undeliverable addresses`,
+with the count on the navigation item. That number climbing is a
+deliverability problem in progress. An administrator can clear one from there
+once the address has been corrected.
+
+Verify it works before go-live. Postmark, Resend and Mailgun all provide a test
+address that bounces on purpose:
+
+```bash
+php artisan mail:test bounce@simulator.amazonses.com --template=welcome
+# then check /admin → Platform → Undeliverable addresses
+```
 
 ## 8. Monitoring
 
