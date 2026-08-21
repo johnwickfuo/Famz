@@ -294,18 +294,35 @@ Authentication-Results: spf=pass ... dkim=pass ... dmarc=pass
 
 ### Every template, end to end on staging
 
-Not a smoke test — walk the actual flows and confirm each message arrives,
-renders with the branding, and its links work against the staging domain:
+`php artisan mail:test <address>` sends all of them at once, synchronously, and
+reports each one. `--list` shows the keys; `--template=<key>` sends one.
 
-- verification, password reset
-- seller approved, seller rejected, more information needed
-- order paid, order shipped
-- offer received, offer countered, offer accepted, offer rejected
-- dispute raised, payout paid
-- course purchased, certificate issued
-- mentor invitation, engagement confirmed
-- consultation booked, consultation quoted, report ready
-- quotation sent, study fee due, quotation expired
+Twenty-one transactional templates plus the announcement:
+
+| Area | Templates |
+|---|---|
+| Account | `welcome`, `account-activated`, plus Laravel's own verification and password-reset mail |
+| Selling | `seller-approved`, `seller-more-info`, `seller-rejected` |
+| Orders | `order-paid`, `seller-order-received`, `order-shipped` |
+| Money | `withdrawal-paid`, `dispute-raised` |
+| Offers | `offer-received`, `offer-countered`, `offer-accepted`, `offer-rejected`, `buyer-request-reviewed`, `buyer-request-expiring` |
+| Academy | `course-purchased`, `certificate-issued` |
+| Mentorship | `mentor-invitation`, `engagement-confirmed` |
+| Consultations | `consultation-booked`, `consultation-quoted`, `consultation-report` |
+| Quotations | `quotation-study-fee-due`, `quotation-sent`, `quotation-expired` |
+
+Sending is not the same as arriving, so walk the actual flows on staging too
+and confirm each message renders with the branding and its links resolve
+against the staging domain.
+
+Four are time-critical and their subject lines say so without being opened —
+check these read correctly, since a person deciding whether to open a message
+reads only the subject:
+
+- `dispute-raised` — *Action needed: dispute opened on SO-…*
+- `withdrawal-paid` — *Paid: ₦87,500 sent to your bank account*
+- `consultation-booked` (urgent) — *URGENT consultation CON-… — we reply within 6 working hours*
+- `order-paid` — *Payment received — order OR-…*
 
 ### Bounces and complaints
 

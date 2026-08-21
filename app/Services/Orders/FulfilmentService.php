@@ -26,6 +26,7 @@ class FulfilmentService
     public function __construct(
         private readonly SettlementManager $settlement,
         private readonly WalletService $wallet,
+        private readonly OrderNotifier $notifier,
     ) {}
 
     public function accept(SubOrder $subOrder, ?User $actor = null): SubOrder
@@ -81,6 +82,10 @@ class FulfilmentService
         ])->save();
 
         $subOrder->order->syncStatusFromSubOrders();
+
+        // The buyer is watching for this one. It is also where the instruction
+        // to mark delivered — which is what releases the money — reaches them.
+        $this->notifier->shipped($subOrder);
 
         return $subOrder;
     }

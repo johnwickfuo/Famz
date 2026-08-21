@@ -13,10 +13,12 @@ use App\Models\MentorshipMatch;
 use App\Models\MentorshipPackage;
 use App\Models\Order;
 use App\Models\User;
+use App\Notifications\EngagementConfirmed;
 use App\Services\Wallet\WalletService;
 use App\Support\Commission;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use RuntimeException;
 
 /**
@@ -226,6 +228,31 @@ class EngagementService
 
             return true;
         });
+    }
+
+    /**
+     * Both sides hear that the engagement is live.
+     *
+     * Called after markInvoicePaid commits rather than inside it, for the same
+     * reason as everywhere else: a notification is not worth rolling back a
+     * payment for. The news is not really "you have been charged" — it is that
+     * the contact details are visible now, which is the one thing neither of
+     * them could see a moment ago.
+     */
+    public function announceActivation(MentorshipEngagement $engagement): void
+    {
+        $engagement->loadMissing('client', 'mentor');
+
+        foreach ([[$engagement->client, false], [$engagement->mentor, true]] as [$user, $forMentor]) {
+            try {
+                $user?->notify(new EngagementConfirmed($engagement, $forMentor));
+            } catch (\Throwable $exception) {
+                Log::error('An engagement notification could not be sent.', [
+                    'engagement' => $engagement->reference,
+                    'exception' => $exception->getMessage(),
+                ]);
+            }
+        }
     }
 
     /**

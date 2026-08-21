@@ -5,11 +5,14 @@ namespace App\Services\Mentorship;
 use App\Enums\ContactMethod;
 use App\Enums\RoleName;
 use App\Enums\UserStatus;
+use App\Mail\MentorInvitationMail;
 use App\Models\MentorInvitation;
 use App\Models\MentorProfile;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\URL;
 use RuntimeException;
 
@@ -53,7 +56,33 @@ class InvitationService
             'expires_at' => now()->addDays($days ?? MentorInvitation::DEFAULT_DAYS),
         ])->save();
 
-        return $invitation->refresh();
+        $invitation = $invitation->refresh();
+
+        /*
+         * Sent here, rather than left for somebody to copy out of the panel.
+         *
+         * There is no public mentor signup, so this link is the entire route in
+         * — an invitation that is created and never delivered is a mentor who
+         * never joins. Only when an address was given: an administrator may
+         * still mint an open link to send over WhatsApp, which is why `email`
+         * is nullable in the first place.
+         */
+        if ($invitation->email !== null) {
+            try {
+                Mail::to($invitation->email)->send(
+                    new MentorInvitationMail($invitation, $this->urlFor($invitation)),
+                );
+            } catch (\Throwable $exception) {
+                // The invitation still exists and the link still works, so this
+                // is recoverable by hand — but somebody has to know to do that.
+                Log::error('A mentor invitation could not be emailed.', [
+                    'invitation' => $invitation->getKey(),
+                    'exception' => $exception->getMessage(),
+                ]);
+            }
+        }
+
+        return $invitation;
     }
 
     /**

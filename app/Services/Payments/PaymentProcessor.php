@@ -2,6 +2,7 @@
 
 namespace App\Services\Payments;
 
+use App\Enums\EngagementStatus;
 use App\Enums\LedgerState;
 use App\Enums\LedgerType;
 use App\Enums\OrderStatus;
@@ -15,6 +16,7 @@ use App\Models\QuotationStudyFee;
 use App\Models\SubOrder;
 use App\Services\Consultations\ConsultationService;
 use App\Services\Mentorship\EngagementService;
+use App\Services\Orders\OrderNotifier;
 use App\Services\Quotations\StudyFeeService;
 use App\Services\Settlement\SettlementManager;
 use App\Services\Wallet\WalletService;
@@ -39,6 +41,7 @@ class PaymentProcessor
         private readonly EngagementService $engagements,
         private readonly ConsultationService $consultations,
         private readonly StudyFeeService $studyFees,
+        private readonly OrderNotifier $orders,
     ) {}
 
     /**
@@ -93,7 +96,7 @@ class PaymentProcessor
      */
     public function markPaid(Order $order, string $gatewayKey, string $gatewayReference): bool
     {
-        return DB::transaction(function () use ($order, $gatewayKey, $gatewayReference): bool {
+        $changed = DB::transaction(function () use ($order, $gatewayKey, $gatewayReference): bool {
             // Re-read inside the transaction with a row lock: two webhook
             // deliveries arriving together would otherwise both see an unpaid
             // order and both write the ledger.
@@ -141,6 +144,26 @@ class PaymentProcessor
 
             return true;
         });
+
+        /*
+         * Told after the commit, never inside it.
+         *
+         * A notification is not worth rolling back a payment for, and a mail
+         * provider timing out inside the transaction would hold the order's row
+         * lock while it did. Only on the call that actually changed the order,
+         * so a redelivered webhook does not send everything twice.
+         */
+        if ($changed) {
+            $fresh = $order->refresh();
+
+            $this->orders->paid($fresh);
+            // A course order has no sub-orders, so the line above tells nobody
+            // about it. This is what a buyer of training actually receives.
+            $this->orders->coursesOpened($fresh);
+            $this->announceMentorship($fresh);
+        }
+
+        return $changed;
     }
 
     /**
@@ -200,6 +223,28 @@ class PaymentProcessor
             // Idempotent inside: a redelivered webhook writes one set of
             // entries and activates nothing twice.
             $this->engagements->markInvoicePaid($invoice, $order);
+        }
+    }
+
+    /**
+     * Tell both sides of a mentorship that it is live.
+     *
+     * Read back after the commit and filtered to Active, so a payment that
+     * failed to activate an engagement does not announce one. The whole method
+     * only runs on the call that changed the order, so a redelivered webhook
+     * reaches none of this and nobody is told twice.
+     */
+    private function announceMentorship(Order $order): void
+    {
+        $invoices = MentorshipInvoice::query()
+            ->where('order_id', $order->getKey())
+            ->with('engagement.mentor', 'engagement.client')
+            ->get();
+
+        foreach ($invoices as $invoice) {
+            if ($invoice->engagement?->status === EngagementStatus::Active) {
+                $this->engagements->announceActivation($invoice->engagement);
+            }
         }
     }
 

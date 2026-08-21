@@ -4,20 +4,34 @@ namespace App\Mail;
 
 use App\Enums\ConsultationStatus;
 use App\Enums\ConsultationTier;
+use App\Enums\DisputeReason;
+use App\Enums\DisputeStatus;
 use App\Enums\QuotationProjectType;
 use App\Enums\QuotationRequestStatus;
 use App\Enums\QuotationScope;
 use App\Enums\QuotationStatus;
 use App\Enums\UserStatus;
+use App\Enums\WithdrawalStatus;
 use App\Models\BuyerRequest;
 use App\Models\Consultation;
 use App\Models\ConsultationReport;
+use App\Models\Course;
+use App\Models\Dispute;
+use App\Models\Enrolment;
+use App\Models\MentorInvitation;
+use App\Models\MentorshipEngagement;
 use App\Models\Offer;
+use App\Models\Order;
+use App\Models\OrderItem;
+use App\Models\PayoutAccount;
 use App\Models\Product;
 use App\Models\Quotation;
 use App\Models\QuotationRequest;
 use App\Models\QuotationStudyFee;
+use App\Models\SellerProfile;
+use App\Models\SubOrder;
 use App\Models\User;
+use App\Models\Withdrawal;
 use App\Services\Quotations\StudyFeeService;
 use Illuminate\Support\Str;
 
@@ -130,6 +144,48 @@ class MailTemplateRegistry
                 'class' => WithdrawalPaidMail::class,
                 'name' => __('Payout paid'),
                 'description' => __('Sent when money has actually left for a seller\'s bank. The amount is in the subject.'),
+                'transactional' => true,
+            ],
+            [
+                'key' => 'order-paid',
+                'class' => OrderPaidMail::class,
+                'name' => __('Order paid'),
+                'description' => __("The buyer's receipt. The reference is in the subject, because that is what somebody searches their inbox for weeks later."),
+                'transactional' => true,
+            ],
+            [
+                'key' => 'seller-order-received',
+                'class' => SellerOrderReceivedMail::class,
+                'name' => __('New order for a seller'),
+                'description' => __('Tells a seller they have something to pack. An order nobody knows about does not get packed.'),
+                'transactional' => true,
+            ],
+            [
+                'key' => 'order-shipped',
+                'class' => OrderShippedMail::class,
+                'name' => __('Order shipped'),
+                'description' => __('Tells the buyer it has left, and that marking it delivered is what releases the money.'),
+                'transactional' => true,
+            ],
+            [
+                'key' => 'course-purchased',
+                'class' => CoursePurchasedMail::class,
+                'name' => __('Course purchased'),
+                'description' => __('Carries the link to the first lesson. Course sales are final, so somebody who cannot find what they bought has no way out.'),
+                'transactional' => true,
+            ],
+            [
+                'key' => 'mentor-invitation',
+                'class' => MentorInvitationMail::class,
+                'name' => __('Mentor invitation'),
+                'description' => __('The only route to becoming a mentor — there is no public signup.'),
+                'transactional' => true,
+            ],
+            [
+                'key' => 'engagement-confirmed',
+                'class' => EngagementConfirmedMail::class,
+                'name' => __('Engagement confirmed'),
+                'description' => __('Sent to both sides when a mentorship goes live and the contact details unlock.'),
                 'transactional' => true,
             ],
             [
@@ -258,6 +314,22 @@ class MailTemplateRegistry
             BuyerRequestExpiringMail::class => new BuyerRequestExpiringMail($this->sampleRequest($user), 3),
             DisputeRaisedMail::class => new DisputeRaisedMail($this->sampleDispute($user), '/disputes'),
             WithdrawalPaidMail::class => new WithdrawalPaidMail($this->sampleWithdrawal($user), '/seller/earnings'),
+            OrderPaidMail::class => new OrderPaidMail($this->sampleOrder($user), '/orders'),
+            SellerOrderReceivedMail::class => new SellerOrderReceivedMail(
+                $this->sampleSubOrder($user),
+                '/seller/sub-orders',
+            ),
+            OrderShippedMail::class => new OrderShippedMail($this->sampleSubOrder($user), '/orders'),
+            CoursePurchasedMail::class => new CoursePurchasedMail($this->sampleEnrolment($user), '/academy'),
+            MentorInvitationMail::class => new MentorInvitationMail(
+                $this->sampleInvitation($user),
+                url('/mentors/join/preview-token'),
+            ),
+            EngagementConfirmedMail::class => new EngagementConfirmedMail(
+                $this->sampleEngagement($user),
+                forMentor: false,
+                actionUrl: '/mentorship',
+            ),
             PlatformAnnouncementMail::class => new PlatformAnnouncementMail(
                 __('A note from {company}'),
                 __("This is a preview of how an announcement from {company} looks.\n\nAnything an administrator writes here is sent with the platform's own branding, and {company_short} is filled in from the settings screen."),
@@ -367,14 +439,116 @@ class MailTemplateRegistry
     }
 
     /**
+     * An order, its one sub-order and its items — none of them saved.
+     */
+    private function sampleSubOrder(User $user): SubOrder
+    {
+        $item = new OrderItem;
+        $item->forceFill([
+            'product_name' => __('Layers mash, 25kg bag'),
+            'quantity' => 20,
+            'unit_price_kobo' => 1_650_000,
+            'total_kobo' => 33_000_000,
+        ]);
+
+        $subOrder = new SubOrder;
+        $subOrder->forceFill([
+            'reference' => 'SO-'.now()->format('ymd').'-'.Str::upper(Str::random(6)),
+            'subtotal_kobo' => 33_000_000,
+            'delivery_fee_kobo' => 500_000,
+            'total_kobo' => 33_500_000,
+            'shipped_at' => now(),
+        ]);
+
+        $subOrder->setRelation('seller', $this->sampleSeller($user));
+        $subOrder->setRelation('items', collect([$item]));
+        $subOrder->setRelation('order', $this->sampleOrder($user, $subOrder));
+
+        return $subOrder;
+    }
+
+    private function sampleOrder(User $user, ?SubOrder $subOrder = null): Order
+    {
+        $order = new Order;
+        $order->forceFill([
+            'reference' => 'OR-'.now()->format('ymd').'-'.Str::upper(Str::random(6)),
+            'subtotal_kobo' => 33_000_000,
+            'delivery_fee_kobo' => 500_000,
+            'total_kobo' => 33_500_000,
+            'currency' => 'NGN',
+            'delivery_state' => 'Oyo',
+            'paid_at' => now(),
+        ]);
+
+        $order->setRelation('user', $user);
+
+        /*
+         * Only when the caller did not come from sampleSubOrder. Building a
+         * sub-order here would recurse: the sub-order asks for its order, and
+         * the order would ask for its sub-orders, forever.
+         */
+        $order->setRelation('subOrders', collect(array_filter([$subOrder])));
+
+        return $order;
+    }
+
+    private function sampleEnrolment(User $user): Enrolment
+    {
+        $course = new Course;
+        $course->forceFill([
+            'title' => __('Brooder management for day-old chicks'),
+            'slug' => 'brooder-management',
+        ]);
+
+        $enrolment = new Enrolment;
+        $enrolment->forceFill(['price_paid_kobo' => 1_500_000]);
+
+        $enrolment->setRelation('course', $course);
+        $enrolment->setRelation('user', $user);
+
+        return $enrolment;
+    }
+
+    private function sampleInvitation(User $user): MentorInvitation
+    {
+        $invitation = new MentorInvitation;
+        $invitation->forceFill([
+            'email' => $user->email,
+            'name' => $user->displayName(),
+            'note' => __('Twenty years in layers around Ibadan. Would be a good fit for people starting out.'),
+            'expires_at' => now()->addDays(14),
+        ]);
+
+        return $invitation;
+    }
+
+    private function sampleEngagement(User $user): MentorshipEngagement
+    {
+        $engagement = new MentorshipEngagement;
+        $engagement->forceFill([
+            'reference' => 'MTR-'.now()->format('ymd').'-'.Str::upper(Str::random(6)),
+            'package_name' => __('Monthly check-in, three months'),
+            'started_at' => now(),
+        ]);
+
+        $engagement->setRelation('client', $user);
+        $engagement->setRelation('mentor', $user);
+
+        return $engagement;
+    }
+
+    /**
      * A seller profile that exists only for the duration of a preview.
      */
-    private function sampleSeller(User $user): \App\Models\SellerProfile
+    private function sampleSeller(User $user): SellerProfile
     {
-        $seller = new \App\Models\SellerProfile;
+        $seller = new SellerProfile;
         $seller->forceFill([
-            'business_name' => __('Sample Feeds and Equipment'),
-            'slug' => 'sample-feeds-and-equipment',
+            // Deliberately not brand-shaped. Preview data lives in app/, which
+            // the brand scan treats as source — and it is right to: a plausible
+            // company name here is indistinguishable from a leaked one.
+            'business_name' => __('A Sample Business'),
+            'slug' => 'a-sample-business',
             'state' => 'Oyo',
         ]);
 
@@ -386,19 +560,19 @@ class MailTemplateRegistry
     /**
      * A dispute that exists only for the duration of a preview.
      */
-    private function sampleDispute(User $user): \App\Models\Dispute
+    private function sampleDispute(User $user): Dispute
     {
-        $subOrder = new \App\Models\SubOrder;
+        $subOrder = new SubOrder;
         $subOrder->forceFill([
             'reference' => 'SO-'.now()->format('ymd').'-'.Str::upper(Str::random(6)),
             'total_kobo' => 4_200_000,
         ]);
 
-        $dispute = new \App\Models\Dispute;
+        $dispute = new Dispute;
         $dispute->forceFill([
-            'reason' => \App\Enums\DisputeReason::QualityPoor,
+            'reason' => DisputeReason::QualityPoor,
             'description' => __('Twelve of the forty bags were torn and the feed had caked.'),
-            'status' => \App\Enums\DisputeStatus::Open,
+            'status' => DisputeStatus::Open,
             'created_at' => now(),
         ]);
 
@@ -411,21 +585,21 @@ class MailTemplateRegistry
     /**
      * A paid withdrawal that exists only for the duration of a preview.
      */
-    private function sampleWithdrawal(User $user): \App\Models\Withdrawal
+    private function sampleWithdrawal(User $user): Withdrawal
     {
-        $account = new \App\Models\PayoutAccount;
+        $account = new PayoutAccount;
         $account->forceFill([
             'account_name' => $user->displayName(),
             'account_number' => '0123456789',
             'bank_name' => __('Sample Bank'),
         ]);
 
-        $withdrawal = new \App\Models\Withdrawal;
+        $withdrawal = new Withdrawal;
         $withdrawal->forceFill([
             'reference' => 'WD-'.now()->format('ymd').'-'.Str::upper(Str::random(6)),
             'amount_kobo' => 8_750_000,
             'currency' => 'NGN',
-            'status' => \App\Enums\WithdrawalStatus::Paid,
+            'status' => WithdrawalStatus::Paid,
             'processed_at' => now(),
         ]);
 
