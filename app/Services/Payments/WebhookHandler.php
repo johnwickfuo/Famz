@@ -127,9 +127,31 @@ class WebhookHandler
         }
     }
 
+    /**
+     * A DUPLICATE, specifically — not any integrity constraint.
+     *
+     * SQLSTATE 23000 is the general integrity-constraint class: a NOT NULL
+     * violation, a foreign key violation and a check constraint all carry it.
+     * Treating the whole class as "duplicate" means a genuinely broken insert
+     * is answered with `duplicate`, the gateway is told everything is fine, it
+     * stops retrying, and a paid order stays unpaid with nothing in the log
+     * that looks like a problem.
+     *
+     * So the driver's own code is what decides: 1062 on MySQL and MariaDB,
+     * 23505 on Postgres, and SQLite says so in words.
+     */
     private function isUniqueViolation(QueryException $exception): bool
     {
-        // 23000/23505 across MySQL, MariaDB, SQLite and Postgres.
-        return in_array($exception->getCode(), ['23000', '23505'], true);
+        $driverCode = $exception->errorInfo[1] ?? null;
+
+        return match (true) {
+            // MySQL / MariaDB: ER_DUP_ENTRY.
+            (int) $driverCode === 1062 => true,
+            // Postgres.
+            $exception->getCode() === '23505' => true,
+            // SQLite reports it in the message rather than a distinct code.
+            str_contains(mb_strtolower($exception->getMessage()), 'unique constraint failed') => true,
+            default => false,
+        };
     }
 }
